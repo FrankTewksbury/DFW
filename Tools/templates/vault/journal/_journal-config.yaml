@@ -1,0 +1,59 @@
+# =============================================================================
+# Journal Configuration
+# =============================================================================
+# Location: journal/_journal-config.yaml
+# Purpose:  Define projects, default tags, and template behavior
+# Usage:    Reference this when creating new journal entries via Claude
+# =============================================================================
+
+# Active Projects — add your projects here after scaffolding
+projects:
+  - name: DFWP
+    folder: projects/dfwp
+    tags: [dfwp, workflow, methodology]
+    active: true
+
+# Default Tags — automatically added to every journal entry
+default_tags:
+  - journal
+  - daily
+
+# Priority Levels
+priorities:
+  - tag: must-do
+    description: Critical path - must complete today
+  - tag: should-do
+    description: Important but not blocking
+  - tag: could-do
+    description: If time permits
+  - tag: blocked
+    description: Waiting on external dependency
+  - tag: waiting
+    description: Delegated or pending response
+
+# Linking Behavior
+linking:
+  link_previous: true
+  link_project_todos: true
+  filename_format: "YYYY-MM-DD"
+  journal_folder: journal
+
+# Template Sections
+sections:
+  executive_summary: true
+  context_links: true
+  goals: true
+  project_tasks: true
+  session_notes: true
+  end_of_day_review: true
+
+# Session Types
+session_types:
+  - Infrastructure Deployment
+  - Architecture Planning
+  - Code Development
+  - Documentation
+  - Research & Analysis
+  - Debugging & Troubleshooting
+  - DevOps & CI/CD
+  - General Planning

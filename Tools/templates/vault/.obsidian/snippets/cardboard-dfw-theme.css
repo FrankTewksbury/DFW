@@ -1,0 +1,87 @@
+/* DFW Lifecycle Column Colors — CardBoard Theme */
+/* Deploy to: .obsidian/snippets/cardboard-dfw-theme.css */
+
+/* === Status Tag → Card Highlight Colors === */
+
+/* Inbox - gray */
+.card-board-card[data-tags~=status-inbox] .card-board-card-highlight-area {
+  background-color: #6b7280;
+}
+
+/* Backlog - blue */
+.card-board-card[data-tags~=status-backlog] .card-board-card-highlight-area {
+  background-color: #5B8DEF;
+}
+
+/* Active - amber */
+.card-board-card[data-tags~=status-active] .card-board-card-highlight-area {
+  background-color: #D4A843;
+}
+
+/* Build/Test - orange */
+.card-board-card[data-tags~=status-build] .card-board-card-highlight-area {
+  background-color: #E0854F;
+}
+
+/* Deploy - green */
+.card-board-card[data-tags~=status-deploy] .card-board-card-highlight-area {
+  background-color: #3BAF6F;
+}
+
+/* Monitoring - teal */
+.card-board-card[data-tags~=status-monitoring] .card-board-card-highlight-area {
+  background-color: #4DB88C;
+}
+
+/* Feedback - red */
+.card-board-card[data-tags~=status-feedback] .card-board-card-highlight-area {
+  background-color: #E05757;
+}
+
+/* === Priority Tag Styling === */
+
+.card-board-view a.tag[href="#priority/critical"] {
+  background-color: #E05757;
+  color: white;
+  font-weight: 600;
+}
+
+.card-board-view a.tag[href="#priority/important"] {
+  background-color: #D4A843;
+  color: white;
+}
+
+.card-board-view a.tag[href="#priority/normal"] {
+  background-color: #4b556320;
+  color: #9ca3af;
+}
+
+.card-board-view a.tag[href="#priority/low"] {
+  background-color: #4b556310;
+  color: #6b7280;
+}
+
+/* === Source Tag Styling === */
+
+.card-board-view a.tag[href="#source/cloudreport"] {
+  background-color: #E0585820;
+  color: #E05858;
+  border: 1px solid #E0585840;
+}
+
+.card-board-view a.tag[href="#source/dfw-feedback"] {
+  background-color: #5B8DEF20;
+  color: #5B8DEF;
+  border: 1px solid #5B8DEF40;
+}
+
+.card-board-view a.tag[href="#source/journal"] {
+  background-color: #9B6FD420;
+  color: #9B6FD4;
+  border: 1px solid #9B6FD440;
+}
+
+.card-board-view a.tag[href="#source/manual"] {
+  background-color: #4b556310;
+  color: #6b7280;
+}

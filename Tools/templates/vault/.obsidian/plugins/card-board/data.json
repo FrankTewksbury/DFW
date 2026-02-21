@@ -1,0 +1,38 @@
+{
+  "version": "0.13.0",
+  "data": {
+    "boardConfigs": [
+      {
+        "columns": [
+          { "tag": "namedTag", "data": { "collapsed": false, "name": "status/backlog", "tag": "status/backlog" } },
+          { "tag": "namedTag", "data": { "collapsed": false, "name": "status/active", "tag": "status/active" } },
+          { "tag": "namedTag", "data": { "collapsed": false, "name": "status/build", "tag": "status/build" } },
+          { "tag": "namedTag", "data": { "collapsed": false, "name": "status/deploy", "tag": "status/deploy" } }
+        ],
+        "filters": [ { "tag": "pathFilter", "data": "projects/dfwp/" } ],
+        "filterPolarity": "Allow",
+        "filterScope": "Both",
+        "name": "DFWP",
+        "showColumnTags": true,
+        "showFilteredTags": true
+      }
+    ],
+    "globalSettings": {
+      "defaultColumnNames": {
+        "today": "",
+        "tomorrow": "",
+        "future": "",
+        "undated": "",
+        "otherTags": "",
+        "untagged": "",
+        "completed": ""
+      },
+      "filters": [],
+      "firstDayOfWeek": "FromLocale",
+      "ignoreFileNameDates": false,
+      "taskCompletionFormat": "ObsidianCardBoard",
+      "taskCompletionInLocalTime": true,
+      "taskCompletionShowUtcOffset": true
+    }
+  }
+}

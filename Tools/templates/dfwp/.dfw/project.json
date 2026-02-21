@@ -1,0 +1,15 @@
+{
+  "pid": "{{PID}}",
+  "name": "dfwp",
+  "type": "research",
+  "version": "1.0.0",
+  "created": "{{DATE}}",
+  "methodology": "dfw",
+  "dfwVersion": "0.7.0",
+  "subprojects": [],
+  "constitution": "./constitution.json",
+  "tags": {
+    "scope": "meta-project",
+    "owner": "{{OWNER}}"
+  }
+}

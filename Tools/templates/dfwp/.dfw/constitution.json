@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "naming": {
+    "project": "lowercase-kebab-case"
+  },
+  "scopeBoundaries": "root-global, subproject-local",
+  "principles": [
+    "P1: Context Is Currency",
+    "P2: Humans Steer, AI Recommends, Plans, Executes",
+    "P3: Ambiguity Stops Work",
+    "P4: Explicit Over Implicit",
+    "P5: Small, Composable Units",
+    "P6: Feedback Closes the Loop",
+    "P7: Scope Boundaries Are Sacred",
+    "P8: Tools Are Fit-for-Purpose",
+    "P9: Measure Before Optimizing"
+  ],
+  "notes": "Root-level DFWP methodology project. Global conventions defined in DFW-CONSTITUTION.md."
+}
