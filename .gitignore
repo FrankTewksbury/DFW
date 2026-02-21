@@ -1,0 +1,19 @@
+# Obsidian Vault — personal content, never committed
+Vault/
+
+# Personal config (machine-specific, not distributed)
+Tools/Constitution/personal-config.md
+
+# Transient scaffold state
+Tools/.dfw-state/
+
+# Research PDFs (too large for git)
+*.pdf
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Stray migration scripts at root
+migrate-vault.ps1
