@@ -157,7 +157,18 @@ Linux:    ~/.config/Claude/claude_desktop_config.json
 
 On Windows, press `Win+R`, type `%APPDATA%\Claude`, and press Enter. Open `claude_desktop_config.json` in any text editor. If the file doesn't exist, create it.
 
-### 8b: Paste the MCP configuration
+### 8b: Understand the three-server architecture
+
+The DFW Extension expects **three filesystem MCP servers** plus the Obsidian connector. This is required for the extension's scaffold, audit, and path management commands to work correctly.
+
+| Server Key | Purpose | What Goes Here |
+|------------|---------|----------------|
+| `dfw-filesystem` | DFW infrastructure | Your DFW root and DFWP project paths |
+| `services-filesystem` | Shared utilities and long-lived services | Paths to service projects (add later as needed) |
+| `projects-filesystem` | Individual project workspaces | Paths to your project directories (add later as needed) |
+| `obsidian-mcp-tools` | Obsidian vault access | Connects Claude to your Obsidian notes |
+
+### 8c: Paste the MCP configuration
 
 A template is provided at `Tools/templates/claude-desktop-config-template.json` in your DFW directory. Copy its contents into your config file, then replace the placeholders:
 
@@ -168,9 +179,23 @@ A template is provided at `Tools/templates/claude-desktop-config-template.json` 
       "command": "npx",
       "args": [
         "-y",
-        "@anthropic-ai/mcp-filesystem-server",
+        "@modelcontextprotocol/server-filesystem",
         "<YOUR_DFW_ROOT>",
         "<YOUR_DFWP_PATH>"
+      ]
+    },
+    "services-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem"
+      ]
+    },
+    "projects-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem"
       ]
     },
     "obsidian-mcp-tools": {
@@ -184,7 +209,9 @@ A template is provided at `Tools/templates/claude-desktop-config-template.json` 
 }
 ```
 
-### 8c: Replace the placeholders
+The `services-filesystem` and `projects-filesystem` servers start empty. As you create new projects with the DFW Extension, it will automatically add paths to the correct server based on project type.
+
+### 8d: Replace the placeholders
 
 | Placeholder | Replace With | Example |
 |-------------|-------------|---------|
@@ -194,11 +221,13 @@ A template is provided at `Tools/templates/claude-desktop-config-template.json` 
 
 **Important:** On Windows, paths in JSON use double backslashes: `C:\\Projects\\DFW`, not `C:\Projects\DFW`.
 
-### 8d: Restart Claude Desktop
+**Package name:** The filesystem server package is `@modelcontextprotocol/server-filesystem`. The DFW Extension specifically looks for this package name when managing MCP config.
+
+### 8e: Restart Claude Desktop
 
 Close and reopen Claude Desktop completely. MCP config changes only take effect on restart.
 
-### 8e: Verify MCP is working
+### 8f: Verify MCP is working
 
 In a new Claude Desktop conversation, Claude should now be able to:
 - Read and write files in your DFW and DFWP directories (via `dfw-filesystem`)

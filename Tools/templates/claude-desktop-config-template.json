@@ -4,9 +4,23 @@
       "command": "npx",
       "args": [
         "-y",
-        "@anthropic-ai/mcp-filesystem-server",
+        "@modelcontextprotocol/server-filesystem",
         "<YOUR_DFW_ROOT>",
         "<YOUR_DFWP_PATH>"
+      ]
+    },
+    "services-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem"
+      ]
+    },
+    "projects-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem"
       ]
     },
     "obsidian-mcp-tools": {
