@@ -1,0 +1,20 @@
+{
+  "mcpServers": {
+    "dfw-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@anthropic-ai/mcp-filesystem-server",
+        "<YOUR_DFW_ROOT>",
+        "<YOUR_DFWP_PATH>"
+      ]
+    },
+    "obsidian-mcp-tools": {
+      "command": "npx",
+      "args": ["-y", "obsidian-mcp-tools"],
+      "env": {
+        "OBSIDIAN_API_KEY": "<YOUR_OBSIDIAN_REST_API_KEY>"
+      }
+    }
+  }
+}

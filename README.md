@@ -2,6 +2,32 @@
 
 The shared infrastructure for the DFW methodology. Clone this repo to bootstrap a complete DFW environment on any machine.
 
+## Prerequisites
+
+- **Git** — https://git-scm.com/downloads
+- **Node.js** (LTS) — https://nodejs.org (required for MCP servers)
+- **PowerShell 5.1+** — built into Windows; [install on macOS/Linux](https://github.com/PowerShell/PowerShell)
+- **Obsidian** — https://obsidian.md (free, no account required)
+- **Claude Desktop** — https://claude.ai/download
+- **Cursor** (or VS Code) — https://cursor.com
+
+## Quick Start
+
+```powershell
+git clone https://github.com/FrankTewksbury/DFW.git <your-dfw-directory>
+cd <your-dfw-directory>\Tools\scripts
+.\Initialize-DFW.ps1 -ProjectPath <your-project-directory>
+```
+
+**Example:**
+```powershell
+git clone https://github.com/FrankTewksbury/DFW.git C:\Projects\DFW
+cd C:\Projects\DFW\Tools\scripts
+.\Initialize-DFW.ps1 -ProjectPath C:\Projects\DFWP
+```
+
+Then follow the **[Full Setup Guide](Tools/docs/SETUP-GUIDE.md)** to configure Obsidian, Claude Desktop, and Cursor.
+
 ## What's Inside
 
 - `Tools/` — Constitution, operating manual, rules, scripts, and seed templates
@@ -10,21 +36,12 @@ The shared infrastructure for the DFW methodology. Clone this repo to bootstrap 
   - `Model/` — Claude-specific model file (CLAUDE.md)
   - `rules/` — Cursor `.mdc` rule files (fraternal twins of the constitution)
   - `scripts/` — Bootstrap, Resync, and CardBoard sync scripts
-  - `templates/` — Seed files for vault and DFWP project initialization
+  - `templates/` — Seed files for vault, DFWP project, and Claude Desktop config
+  - `docs/` — Setup guide and reference documentation
 
 ## What's NOT Inside (generated locally)
 
 - `Vault/` — Obsidian vault (`.gitignored`, created by bootstrap script)
-
-## Quick Start
-
-```powershell
-git clone https://github.com/FrankTewksbury/DFW.git X:\DFW
-cd X:\DFW\Tools\scripts
-.\Initialize-DFW.ps1 -ProjectPath X:\DFWP
-```
-
-Then follow the printed instructions to open Obsidian, configure Claude Desktop, and open Cursor.
 
 ## Related Repos
 

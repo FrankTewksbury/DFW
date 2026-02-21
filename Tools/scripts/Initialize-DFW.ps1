@@ -162,35 +162,69 @@ Write-Host '================================================================' -F
 Write-Host ''
 Write-Host '  NEXT STEPS:' -ForegroundColor Yellow
 Write-Host ''
-Write-Host '  1. OBSIDIAN' -ForegroundColor White
-Write-Host "     - Open Obsidian and create a new vault pointing to:" -ForegroundColor Gray
+Write-Host '  1. INSTALL OBSIDIAN (if not already installed)' -ForegroundColor White
+Write-Host "     - Download from: https://obsidian.md" -ForegroundColor Gray
+Write-Host "     - Free, no account required" -ForegroundColor Gray
+Write-Host ''
+Write-Host '  2. OPEN THE VAULT IN OBSIDIAN' -ForegroundColor White
+Write-Host "     - Open Obsidian > 'Open folder as vault' > select:" -ForegroundColor Gray
 Write-Host "       $VaultPath" -ForegroundColor Cyan
-Write-Host "     - Go to Settings > Community Plugins > Turn on community plugins" -ForegroundColor Gray
-Write-Host "     - Install these plugins:" -ForegroundColor Gray
-Write-Host "       card-board, templater-obsidian, obsidian-local-rest-api" -ForegroundColor Gray
-Write-Host "       smart-connections, smart-templates, mcp-tools, cao" -ForegroundColor Gray
-Write-Host "     - Go to Settings > Appearance > CSS Snippets > Enable 'cardboard-dfw-theme'" -ForegroundColor Gray
 Write-Host ''
-Write-Host '  2. CLAUDE DESKTOP' -ForegroundColor White
+Write-Host '  3. INSTALL OBSIDIAN PLUGINS' -ForegroundColor White
+Write-Host "     - Settings > Community Plugins > Turn on community plugins" -ForegroundColor Gray
+Write-Host "     - Browse and install these (then enable each one):" -ForegroundColor Gray
+Write-Host "       CardBoard              (id: card-board)" -ForegroundColor Gray
+Write-Host "       Templater              (id: templater-obsidian)" -ForegroundColor Gray
+Write-Host "       Local REST API         (id: obsidian-local-rest-api)  ** REQUIRED **" -ForegroundColor Yellow
+Write-Host "       Smart Connections      (id: smart-connections)" -ForegroundColor Gray
+Write-Host "       Smart Templates        (id: smart-templates)" -ForegroundColor Gray
+Write-Host "       MCP Tools              (id: mcp-tools)" -ForegroundColor Gray
+Write-Host "       Cao                    (id: cao)" -ForegroundColor Gray
+Write-Host ''
+Write-Host '  4. CONFIGURE THE LOCAL REST API PLUGIN' -ForegroundColor White
+Write-Host "     - Settings > Community Plugins > Local REST API (gear icon)" -ForegroundColor Gray
+Write-Host "     - Copy or set your API Key — you will need it for Claude Desktop" -ForegroundColor Yellow
+Write-Host "     - Default port: 27124 (leave as-is)" -ForegroundColor Gray
+Write-Host "     - Test: open http://localhost:27124 in a browser" -ForegroundColor Gray
+Write-Host ''
+Write-Host '  5. ENABLE CARDBOARD CSS THEME' -ForegroundColor White
+Write-Host "     - Settings > Appearance > CSS Snippets" -ForegroundColor Gray
+Write-Host "     - Click refresh icon, then enable 'cardboard-dfw-theme'" -ForegroundColor Gray
+Write-Host ''
+Write-Host '  6. CONFIGURE CLAUDE DESKTOP MCP' -ForegroundColor White
 Write-Host "     - Edit: %APPDATA%\Claude\claude_desktop_config.json" -ForegroundColor Gray
-Write-Host "     - Add a 'dfw-filesystem' MCP server with allowed paths:" -ForegroundColor Gray
-Write-Host "       $DFWRoot, $ProjectPath" -ForegroundColor Cyan
-Write-Host "     - Create a Claude Desktop project with CLAUDE.md as knowledge file" -ForegroundColor Gray
+Write-Host "     - Use the template at:" -ForegroundColor Gray
+Write-Host "       $DFWRoot\Tools\templates\claude-desktop-config-template.json" -ForegroundColor Cyan
+Write-Host "     - Replace these placeholders:" -ForegroundColor Gray
+Write-Host "       <YOUR_DFW_ROOT>              = $($DFWRoot -replace '\\','\\')" -ForegroundColor Yellow
+Write-Host "       <YOUR_DFWP_PATH>             = $($ProjectPath -replace '\\','\\')" -ForegroundColor Yellow
+Write-Host "       <YOUR_OBSIDIAN_REST_API_KEY> = your key from step 4" -ForegroundColor Yellow
+Write-Host "     - RESTART Claude Desktop after saving" -ForegroundColor Gray
 Write-Host ''
-Write-Host '  3. CURSOR / VS CODE' -ForegroundColor White
-Write-Host "     - Open the workspace file or folder:" -ForegroundColor Gray
+Write-Host '  7. CREATE A CLAUDE DESKTOP PROJECT' -ForegroundColor White
+Write-Host "     - In Claude Desktop > Projects > Create a project" -ForegroundColor Gray
+Write-Host "     - Add CLAUDE.md as a knowledge file:" -ForegroundColor Gray
+Write-Host "       $ProjectPath\CLAUDE.md" -ForegroundColor Cyan
+Write-Host "     - Enable connectors: dfw-filesystem, obsidian-mcp-tools" -ForegroundColor Gray
+Write-Host ''
+Write-Host '  8. OPEN DFWP IN CURSOR' -ForegroundColor White
+Write-Host "     - Open the project folder:" -ForegroundColor Gray
 Write-Host "       $ProjectPath" -ForegroundColor Cyan
 Write-Host "     - Cursor rules are already in .cursor/rules/" -ForegroundColor Gray
 Write-Host ''
 
 if ($GitHubUser) {
-    Write-Host '  4. GITHUB' -ForegroundColor White
-    Write-Host "     - Create repo: https://github.com/$GitHubUser/DFWP" -ForegroundColor Gray
+    Write-Host '  9. PUSH DFWP TO GITHUB (optional)' -ForegroundColor White
+    Write-Host "     - Create repo: https://github.com/$GitHubUser/DFWP (empty, no README)" -ForegroundColor Gray
     Write-Host "     - Then push:" -ForegroundColor Gray
     Write-Host "       cd $ProjectPath && git push -u origin main" -ForegroundColor Cyan
     Write-Host ''
 }
 
-Write-Host '  Read the constitution: docs/DFW-CONSTITUTION.md' -ForegroundColor Gray
-Write-Host '  Read the manual:       docs/DFW-OPERATING-MANUAL.md' -ForegroundColor Gray
+Write-Host '  FULL SETUP GUIDE:' -ForegroundColor White
+Write-Host "    $DFWRoot\Tools\docs\SETUP-GUIDE.md" -ForegroundColor Cyan
+Write-Host ''
+Write-Host '  KEY DOCS:' -ForegroundColor White
+Write-Host "    Constitution: $ProjectPath\docs\DFW-CONSTITUTION.md" -ForegroundColor Gray
+Write-Host "    Manual:       $ProjectPath\docs\DFW-OPERATING-MANUAL.md" -ForegroundColor Gray
 Write-Host ''
