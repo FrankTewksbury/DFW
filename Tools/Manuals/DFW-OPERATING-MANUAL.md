@@ -415,7 +415,19 @@ The flywheel only works if:
 - If found and `lastCompletedStep` is set, **resume from the next incomplete step**
 - All inputs are in the state file's `inputs` field — do NOT re-ask the user
 
-If no state file exists, proceed to Step 0.
+If no state file exists, proceed to Target Directory Validation.
+
+### Target Directory Validation
+
+Before gathering inputs, verify that the target project path is within the
+configured Target Directory:
+
+1. Read the Target Directory from `personal-config.md` (or `X:\DFW\Tools\Constitution\personal-config.md` for kickstart)
+2. If the user-provided project path is NOT a child of the Target Directory, WARN:
+   `"WARNING: <path> is outside the Target Directory (<target-dir>). All DFW projects
+   should be within the Target Directory for security. Continue anyway? (y/N)"`
+3. If the user confirms, proceed but log the override in the state file notes.
+4. If the user declines, ask for a new path.
 
 ### Quick Reference Checklist
 
@@ -868,6 +880,11 @@ Ask the user: **"MCP Config: Is this a DFW project, a service, or a standalone p
 | `project` | `projects-filesystem` | `X:\<project-name>` and `C:\DATA\<project-name>` |
 
 Read `claude_desktop_config.json` (typically at `%APPDATA%\Claude\claude_desktop_config.json` on Windows), append the path(s) to the correct server's `args` array, and write it back.
+
+> **MCP Path Rule:** Only add the project ROOT path to the MCP config.
+> The filesystem server grants recursive access to all subdirectories automatically.
+> Do NOT list individual subdirectories (`docs/`, `plans/`, etc.) — this is
+> redundant and creates maintenance burden.
 
 **Warn the user:** "Claude Desktop must be restarted for MCP config changes to take effect."
 

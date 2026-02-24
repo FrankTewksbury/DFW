@@ -23,11 +23,12 @@
 
 ## Environment
 
-| Setting | Value |
-|---------|-------|
-| **DFW Root** | `<path-to-dfw-root>` |
-| **Tool Repository** | `<path-to-tool-repo>` |
-| **Obsidian Vault** | `<path-to-obsidian-vault>` |
+| Setting | Value | Notes |
+|---------|-------|-------|
+| **Target Directory** | `<path>` | Security boundary — all DFW content lives here |
+| **DFW Root** | `<path-to-dfw-root>` | |
+| **Tool Repository** | `<path-to-tool-repo>` | |
+| **Obsidian Vault** | `<path-to-obsidian-vault>` | |
 
 ## Tool-to-Directory Mappings
 

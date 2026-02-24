@@ -5,22 +5,16 @@
       "args": [
         "-y",
         "@modelcontextprotocol/server-filesystem",
-        "<YOUR_DFW_ROOT>",
-        "<YOUR_DFWP_PATH>"
-      ]
-    },
-    "services-filesystem": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@modelcontextprotocol/server-filesystem"
+        "<TARGET_DIR>\\DFW",
+        "<TARGET_DIR>\\DFWP"
       ]
     },
     "projects-filesystem": {
       "command": "npx",
       "args": [
         "-y",
-        "@modelcontextprotocol/server-filesystem"
+        "@modelcontextprotocol/server-filesystem",
+        "<TARGET_DIR>"
       ]
     },
     "obsidian-mcp-tools": {

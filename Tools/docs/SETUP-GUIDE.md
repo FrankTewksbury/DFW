@@ -12,7 +12,7 @@ Before you begin, make sure you have:
 |------|----------|----------|
 | **Git** | Yes | https://git-scm.com/downloads |
 | **Node.js** (LTS) | Yes | https://nodejs.org — needed for MCP servers (`npx`) |
-| **PowerShell 5.1+** | Yes | Built into Windows 10/11. On macOS/Linux: https://github.com/PowerShell/PowerShell |
+| **PowerShell 7.0+** | Yes | https://github.com/PowerShell/PowerShell/releases — Windows built-in 5.1 is NOT sufficient |
 | **Obsidian** | Yes | https://obsidian.md — free, no account required |
 | **Claude Desktop** | Yes | https://claude.ai/download |
 | **Cursor** (or VS Code) | Yes | https://cursor.com or https://code.visualstudio.com |
@@ -168,6 +168,12 @@ The DFW Extension expects **three filesystem MCP servers** plus the Obsidian con
 | `projects-filesystem` | Individual project workspaces | Paths to your project directories (add later as needed) |
 | `obsidian-mcp-tools` | Obsidian vault access | Connects Claude to your Obsidian notes |
 
+> **Important:** The `@modelcontextprotocol/server-filesystem` package automatically
+> grants access to ALL subdirectories under any root path you specify. You only need
+> to list the **project root** (e.g., `C:\\Projects\\MyApp`), NOT individual
+> subdirectories like `docs/`, `plans/`, `context/`, etc. Listing subdirs is
+> redundant and makes the config harder to maintain.
+
 ### 8c: Paste the MCP configuration
 
 A template is provided at `Tools/templates/claude-desktop-config-template.json` in your DFW directory. Copy its contents into your config file, then replace the placeholders:
@@ -209,7 +215,11 @@ A template is provided at `Tools/templates/claude-desktop-config-template.json` 
 }
 ```
 
-The `services-filesystem` and `projects-filesystem` servers start empty. As you create new projects with the DFW Extension, it will automatically add paths to the correct server based on project type.
+The `projects-filesystem` server points at your Target Directory root, granting recursive access to all project subdirectories automatically.
+
+> **Tip:** A fully annotated example config is available at:
+> `Tools/templates/claude-desktop-config-example.json`
+> Review it alongside the template to understand how a completed config should look.
 
 ### 8d: Replace the placeholders
 
@@ -223,9 +233,15 @@ The `services-filesystem` and `projects-filesystem` servers start empty. As you 
 
 **Package name:** The filesystem server package is `@modelcontextprotocol/server-filesystem`. The DFW Extension specifically looks for this package name when managing MCP config.
 
-### 8e: Restart Claude Desktop
+### 8e: Restart Claude Desktop — REQUIRED
 
-Close and reopen Claude Desktop completely. MCP config changes only take effect on restart.
+**You MUST fully quit and relaunch Claude Desktop.** This means:
+1. Right-click the Claude icon in the system tray (bottom-right taskbar)
+2. Click **Quit** (not just closing the window)
+3. Relaunch Claude Desktop
+
+MCP configuration is loaded ONLY at startup. Closing the window leaves
+Claude running in the background with the old config.
 
 ### 8f: Verify MCP is working
 
@@ -310,8 +326,17 @@ git push -u origin main
 - Go to Settings > Appearance > CSS Snippets
 - Click the refresh icon, then enable `cardboard-dfw-theme`
 
+### subst drive paths not accessible
+- MCP servers use string matching, not filesystem resolution
+- Use the real path (`C:\DATA\...`) instead of the drive alias (`X:\...`)
+
+### Response truncation or Claude losing context
+- Too many MCP servers consume context window tokens
+- Consolidate servers — group related projects under one server
+- Target fewer than 10 MCP servers total
+
 ### Bootstrap script errors
-- Make sure you're running PowerShell 5.1+ (`$PSVersionTable.PSVersion`)
+- Make sure you're running PowerShell 7.0+ (`$PSVersionTable.PSVersion`)
 - Make sure Git is installed and in your PATH
 - Run with `-Force` to overwrite existing files if re-running
 

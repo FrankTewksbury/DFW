@@ -44,6 +44,7 @@
 #>
 [CmdletBinding()]
 param(
+    [string]$TargetDirectory,
     [string]$DFWRoot,
     [string]$ProjectPath,
     [string]$VaultPath,
@@ -54,6 +55,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Enforce PowerShell 7.0+
+if ($PSVersionTable.PSVersion -lt [version]'7.0') {
+    Write-Error "DFW requires PowerShell 7.0 or later. Current version: $($PSVersionTable.PSVersion). Download from: https://github.com/PowerShell/PowerShell/releases"
+    return
+}
 
 # Resolve DFW root from script location if not provided
 if (-not $DFWRoot) {
@@ -72,6 +79,29 @@ if (-not $VaultPath) {
 
 $ToolsPath = Join-Path $DFWRoot 'Tools'
 
+# Resolve Target Directory
+if (-not $TargetDirectory) {
+    $TargetDirectory = $parentDir
+}
+
+# Validate project path is within Target Directory
+$resolvedTarget = (Resolve-Path $TargetDirectory -ErrorAction SilentlyContinue)?.Path ?? $TargetDirectory
+$resolvedProject = (Resolve-Path $ProjectPath -ErrorAction SilentlyContinue)?.Path ?? $ProjectPath
+
+if (-not $resolvedProject.StartsWith($resolvedTarget, [System.StringComparison]::OrdinalIgnoreCase)) {
+    Write-Host ''
+    Write-Host '  WARNING: Project path is OUTSIDE the Target Directory.' -ForegroundColor Red
+    Write-Host "    Project:   $resolvedProject" -ForegroundColor Red
+    Write-Host "    Target:    $resolvedTarget" -ForegroundColor Red
+    Write-Host '    All DFW projects should be within the Target Directory for security.' -ForegroundColor Red
+    Write-Host ''
+    $confirm = Read-Host '  Continue anyway? (y/N)'
+    if ($confirm -ne 'y') {
+        Write-Host "  Aborted. Provide a project path within $resolvedTarget" -ForegroundColor Yellow
+        return
+    }
+}
+
 # =========================================================================
 # Banner
 # =========================================================================
@@ -80,6 +110,7 @@ Write-Host '================================================================' -F
 Write-Host '  DFW — Development Flywheel Bootstrap' -ForegroundColor Cyan
 Write-Host '================================================================' -ForegroundColor Cyan
 Write-Host ''
+Write-Host "  Target Dir:    $TargetDirectory"
 Write-Host "  DFW Root:      $DFWRoot"
 Write-Host "  Vault Path:    $VaultPath"
 Write-Host "  Project Path:  $ProjectPath"

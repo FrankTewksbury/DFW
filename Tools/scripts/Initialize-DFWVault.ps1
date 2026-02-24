@@ -116,6 +116,53 @@ foreach ($dir in $emptyDirs) {
     }
 }
 
+# =========================================================================
+# Post-Scaffold Verification
+# =========================================================================
+Write-Host '  Verifying vault structure...' -ForegroundColor Gray
+
+$requiredDirs = @('ideas', 'inbox', 'journal', 'meta', 'projects')
+$missingDirs = @()
+
+foreach ($dir in $requiredDirs) {
+    $dirPath = Join-Path $VaultPath $dir
+    if (-not (Test-Path $dirPath)) {
+        $missingDirs += $dir
+    }
+}
+
+if ($missingDirs.Count -gt 0) {
+    Write-Host ''
+    Write-Host '  WARNING: Vault structure verification FAILED.' -ForegroundColor Red
+    Write-Host '  Missing directories at vault root:' -ForegroundColor Red
+    foreach ($d in $missingDirs) {
+        Write-Host "    - $d" -ForegroundColor Red
+    }
+    Write-Host '  The template may not have copied correctly.' -ForegroundColor Red
+    Write-Host '  Check that Tools\templates\vault\ contains the expected structure.' -ForegroundColor Red
+    Write-Host ''
+} else {
+    Write-Host '  Vault structure verified: all required directories present.' -ForegroundColor Green
+}
+
+$nestedVaults = Get-ChildItem -Path $VaultPath -Directory -Depth 1 |
+    Where-Object {
+        $_.Name -ne '.obsidian' -and
+        $_.Name -notin $requiredDirs -and
+        $_.Name -ne 'research' -and
+        $_.Name -ne '_archive' -and
+        (Test-Path (Join-Path $_.FullName '.obsidian'))
+    }
+
+if ($nestedVaults.Count -gt 0) {
+    Write-Host ''
+    Write-Host '  WARNING: Possible nested vault detected:' -ForegroundColor Yellow
+    foreach ($nv in $nestedVaults) {
+        Write-Host "    - $($nv.FullName) (contains .obsidian/)" -ForegroundColor Yellow
+    }
+    Write-Host '  This may indicate the template was copied to the wrong depth.' -ForegroundColor Yellow
+}
+
 Write-Host ''
 Write-Host '  Vault initialization complete.' -ForegroundColor Green
 Write-Host ''

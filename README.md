@@ -1,35 +1,68 @@
 # DFW — Development Flywheel Infrastructure
 
-The shared infrastructure for the DFW methodology. Clone this repo to bootstrap a complete DFW environment on any machine.
+The shared infrastructure for the DFW methodology. Clone this repo and run `Start-Here.ps1` to bootstrap a complete DFW environment on any Windows machine.
+
+## Step 0: Choose Your Target Directory
+
+Before anything else, decide on a **single root directory** that will contain ALL DFW projects, the Obsidian vault, and the Tools repo. This is the **security boundary** — AI tools will ONLY have filesystem access within this directory.
+
+```powershell
+# The setup script will create this for you. Examples:
+# C:\Projects     D:\Projects     X:\Projects
+```
+
+**Rules:**
+- All MCP filesystem server paths MUST point inside this directory
+- All project directories MUST be created inside this directory
+- The Obsidian vault MUST be inside this directory
+- NEVER point MCP servers at paths above the Target Directory
+- This prevents AI agents from accessing SSH keys, credentials, browser profiles, or anything outside the containment boundary
 
 ## Prerequisites
 
-- **Git** — https://git-scm.com/downloads
-- **Node.js** (LTS) — https://nodejs.org (required for MCP servers)
-- **PowerShell 5.1+** — built into Windows; [install on macOS/Linux](https://github.com/PowerShell/PowerShell)
+- **PowerShell 7.0+** — https://github.com/PowerShell/PowerShell/releases (Windows ships with 5.1 which is NOT sufficient)
+- **Git** — https://git-scm.com/downloads (auto-installed by `Start-Here.ps1` via winget if missing)
+- **Node.js** (LTS) — https://nodejs.org (auto-installed by `Start-Here.ps1` via winget if missing)
 - **Obsidian** — https://obsidian.md (free, no account required)
+  - **Required plugin:** Local REST API (`obsidian-local-rest-api`) — the bridge between Claude and your vault
+  - **Required plugin:** MCP Tools (`mcp-tools`) — enables MCP server integration
+  - Obsidian must be **running** whenever Claude Desktop needs vault access
+  - After installing Local REST API, generate an API key in its settings — you'll need it for the Claude Desktop config
+  - Verify the REST API is working: open `http://localhost:27124` in a browser
 - **Claude Desktop** — https://claude.ai/download
 - **Cursor** (or VS Code) — https://cursor.com
 
 ## Quick Start
 
 ```powershell
-git clone https://github.com/FrankTewksbury/DFW.git <your-dfw-directory>
-cd <your-dfw-directory>\Tools\scripts
-.\Initialize-DFW.ps1 -ProjectPath <your-project-directory>
+git clone https://github.com/FrankTewksbury/DFW.git
+.\DFW\Start-Here.ps1
 ```
 
-**Example:**
-```powershell
-git clone https://github.com/FrankTewksbury/DFW.git C:\Projects\DFW
-cd C:\Projects\DFW\Tools\scripts
-.\Initialize-DFW.ps1 -ProjectPath C:\Projects\DFWP
-```
+The script will:
+1. Check prerequisites (install Git and Node.js via winget if missing)
+2. Ask for your drive letter
+3. Create `<drive>:\Projects\` and clone DFW there
+4. Create the Obsidian vault and scaffold the DFWP meta-project
+5. Generate a ready-to-use `claude-desktop-config.json`
+6. Print step-by-step next instructions
 
-Then follow the **[Full Setup Guide](Tools/docs/SETUP-GUIDE.md)** to configure Obsidian, Claude Desktop, and Cursor.
+Then follow the **[Full Setup Guide](Tools/docs/SETUP-GUIDE.md)** for Obsidian plugin installation, API key setup, and Claude Desktop configuration.
+
+> **After editing `claude_desktop_config.json`, you MUST fully quit and relaunch
+> Claude Desktop.** Close from the system tray — not just the window. MCP config
+> changes are only loaded at startup.
+
+## Important: Drive Mappings and MCP
+
+If you use Windows `subst` to map a drive letter (e.g., `X:` → `C:\DATA`),
+be aware that MCP filesystem servers do **not** resolve drive aliases.
+Always configure MCP with the **real path** (`C:\DATA\...`), not the
+mapped drive letter (`X:\...`).
 
 ## What's Inside
 
+- `Start-Here.ps1` — **Run this first.** One-script bootstrap for the entire DFW environment
 - `Tools/` — Constitution, operating manual, rules, scripts, and seed templates
   - `Constitution/` — DFW-CONSTITUTION.md, glossary, CLAUDE templates, personal-config template
   - `Manuals/` — DFW-OPERATING-MANUAL.md
@@ -39,9 +72,58 @@ Then follow the **[Full Setup Guide](Tools/docs/SETUP-GUIDE.md)** to configure O
   - `templates/` — Seed files for vault, DFWP project, and Claude Desktop config
   - `docs/` — Setup guide and reference documentation
 
+## MCP Architecture
+
+DFW uses a **two-server model** for Claude Desktop filesystem access, plus Obsidian:
+
+| Server | Purpose | Contains |
+|--------|---------|----------|
+| `dfw-filesystem` | DFW infrastructure | DFW repo + DFWP meta-project |
+| `projects-filesystem` | Project workspaces | Target Directory root (all projects accessible recursively) |
+| `obsidian-mcp-tools` | Obsidian vault access | Connects Claude to your notes via Local REST API |
+
+**Why this structure?** Each MCP server injects ~10 tool definitions into Claude's context window. Too many servers (we tested 16) causes response truncation and context loss. Two filesystem servers plus Obsidian keeps the total manageable. The `projects-filesystem` server points at the Target Directory root, granting recursive access to all project subdirectories automatically — no need to add individual paths.
+
 ## What's NOT Inside (generated locally)
 
 - `Vault/` — Obsidian vault (`.gitignored`, created by bootstrap script)
+- `claude-desktop-config.json` — Generated by `Start-Here.ps1` (`.gitignored`, contains your paths)
+
+## Troubleshooting
+
+**Claude Desktop can't access files**
+- Verify paths in `claude_desktop_config.json` use double backslashes on Windows (`C:\\Projects\\DFW`)
+- Fully quit and relaunch Claude Desktop (system tray exit, not just close window)
+- Check that Node.js is installed and in PATH (`node --version` in terminal)
+
+**JSON parse error in Claude Desktop config**
+- JSON does NOT allow trailing commas. Remove the comma after the last item in arrays and objects
+- Validate your config at https://jsonlint.com before saving
+
+**Obsidian vault unreachable from Claude**
+- Obsidian must be running with the vault open
+- Local REST API plugin must be installed AND enabled
+- Verify the API key matches between Obsidian plugin settings and `claude_desktop_config.json`
+- Test: `http://localhost:27124` should show the REST API docs page
+
+**subst drive paths not accessible**
+- MCP servers use string matching, not filesystem resolution
+- Use the real path (`C:\DATA\...`) instead of the drive alias (`X:\...`)
+
+**Response truncation or Claude losing context**
+- Too many MCP servers consume context window tokens
+- Consolidate servers — group related projects under one server
+- Target fewer than 10 MCP servers total
+
+**CardBoard board not appearing in Obsidian**
+- Close Obsidian completely before writing to `data.json`
+- Write via the real path (`C:\DATA\...`), not subst alias
+- Remove stale CardBoard view entries from `workspace.json` if present
+
+**Bootstrap script fails**
+- Requires PowerShell 7.0+ (`$PSVersionTable.PSVersion`)
+- Requires Git in PATH
+- Use `-Force` to overwrite if re-running
 
 ## Related Repos
 

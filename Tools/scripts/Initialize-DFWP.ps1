@@ -76,11 +76,11 @@ Write-Host '  Copying DFWP templates...' -ForegroundColor Gray
 $today = Get-Date -Format 'yyyy-MM-dd'
 $todayISO = Get-Date -Format 'yyyy-MM-ddTHH:mm:ss'
 
-# Generate a PID
+# Generate a Project ID
 $pidChars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
-$pid = 'PID-'
+$ProjectID = 'PID-'
 for ($i = 0; $i -lt 5; $i++) {
-    $pid += $pidChars[(Get-Random -Maximum $pidChars.Length)]
+    $ProjectID += $pidChars[(Get-Random -Maximum $pidChars.Length)]
 }
 
 $templateFiles = Get-ChildItem -Path $TemplatePath -Recurse -File
@@ -101,7 +101,7 @@ foreach ($file in $templateFiles) {
 
     $content = Get-Content -Path $file.FullName -Raw
 
-    $content = $content -replace '\{\{PID\}\}', $pid
+    $content = $content -replace '\{\{PID\}\}', $ProjectID
     $content = $content -replace '\{\{DATE\}\}', $today
     $content = $content -replace '\{\{DATE_ISO\}\}', $todayISO
     $content = $content -replace '\{\{OWNER\}\}', $env:USERNAME
@@ -228,5 +228,5 @@ if (-not $SkipGit) {
 
 Write-Host ''
 Write-Host "  DFWP project scaffolded at: $ProjectPath" -ForegroundColor Green
-Write-Host "  Project ID: $pid" -ForegroundColor Green
+Write-Host "  Project ID: $ProjectID" -ForegroundColor Green
 Write-Host ''

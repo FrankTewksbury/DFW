@@ -225,6 +225,27 @@ Structural rewrites, file replacements, and major content changes DO require arc
 
 If you encounter a secret value in any context, redact it immediately: `ANTHROPIC_API_KEY=sk-ant-REDACTED`
 
+### 4.3 Target Directory — Security Boundary
+
+> **CRITICAL RULE: All AI-accessible paths MUST be within the Target Directory.**
+
+The Target Directory (e.g., `C:\Projects`, `D:\Projects`) is the outermost
+boundary for AI tool access. It is set during environment initialization and
+recorded in `personal-config.md`.
+
+- ALL MCP filesystem server paths MUST resolve to locations within the Target Directory.
+- ALL project directories created by scaffolding MUST be within the Target Directory.
+- The Obsidian vault MUST be within the Target Directory.
+- Agents MUST NOT request, suggest, or accept filesystem access to any path
+  outside the Target Directory, even if the user explicitly asks.
+- The scaffold protocol (Operating Manual Section 18) MUST validate that the
+  project path is within the Target Directory before proceeding.
+
+This rule provides **structural enforcement** of the Secrets Are Sacred rule (4.2).
+Behavioral rules can be forgotten or bypassed; directory containment cannot.
+
+> **Derives from:** P7 (Scope Boundaries Are Sacred), P1 (Context Is Currency)
+
 ---
 
 ## 5. Scope Rules — Global vs Local

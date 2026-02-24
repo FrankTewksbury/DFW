@@ -1,0 +1,37 @@
+{
+  "_comment_1": "EXAMPLE CONFIG — Replace paths with your actual Target Directory",
+  "_comment_2": "All paths MUST be within your Target Directory (e.g., C:\\Projects)",
+  "_comment_3": "Use the REAL filesystem path (C:\\DATA), not subst aliases (X:\\)",
+  "_comment_4": "Restart Claude Desktop completely after ANY config change",
+  "_comment_5": "Each filesystem server adds ~10 tool definitions to context. Keep total servers under 10.",
+
+  "mcpServers": {
+    "dfw-filesystem": {
+      "_purpose": "DFW infrastructure repo and the DFWP meta-project",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Projects\\DFW",
+        "C:\\Projects\\DFWP"
+      ]
+    },
+    "projects-filesystem": {
+      "_purpose": "All project workspaces — the Target Directory root grants recursive access",
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Projects"
+      ]
+    },
+    "obsidian-mcp-tools": {
+      "_purpose": "Connects Claude to Obsidian vault via Local REST API plugin (must be running)",
+      "command": "npx",
+      "args": ["-y", "obsidian-mcp-tools"],
+      "env": {
+        "OBSIDIAN_API_KEY": "PASTE_KEY_FROM_OBSIDIAN_REST_API_PLUGIN_SETTINGS"
+      }
+    }
+  }
+}
