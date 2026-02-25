@@ -1,0 +1,595 @@
+---
+title: "Scaffold Protocol"
+description: "Step-by-step procedure for creating a new DFW project"
+icon: "hammer"
+---
+
+## New Project Scaffold Protocol
+
+> **This is the executable procedure for creating a new DFW project from scratch.**
+> Any agent with filesystem access (MCP or direct) MUST follow these steps exactly.
+> This protocol produces the same output as the DFW Extension's `DFW: New Project` command.
+>
+> **Precondition:** The agent MUST have MCP filesystem access to:
+> - `X:\DFW\Tools` (or `C:\DATA\Tool`) — the canonical template repository
+> - The target directory where the project will be created
+> - `X:\DFW\Vault` (or `C:\DATA\DFW\Vault`) — the Obsidian vault (for stub creation)
+>
+> **Note:** `X:` and `C:\DATA` are equivalent (via `subst`). Use whichever is accessible.
+> See personal config for drive equivalence details.
+
+### Resume Check
+
+**Before starting Step 0**, check for an existing state file:
+- Look at `X:\DFW\Tools\.dfw-state\<project-name>-scaffold.json`
+- If found and `lastCompletedStep` is set, **resume from the next incomplete step**
+- All inputs are in the state file's `inputs` field — do NOT re-ask the user
+
+If no state file exists, proceed to Target Directory Validation.
+
+### Target Directory Validation
+
+Before gathering inputs, verify that the target project path is within the configured Target Directory:
+
+1. Read the Target Directory from `personal-config.md` (or `X:\DFW\Tools\Constitution\personal-config.md` for kickstart)
+2. If the user-provided project path is NOT a child of the Target Directory, WARN:
+   `"WARNING: <path> is outside the Target Directory (<target-dir>). All DFW projects should be within the Target Directory for security. Continue anyway? (y/N)"`
+3. If the user confirms, proceed but log the override in the state file notes.
+4. If the user declines, ask for a new path.
+
+### Quick Reference Checklist
+
+| Step | Action | State Key |
+|------|--------|-----------|
+| 0 | Gather inputs from user | `gather-inputs` |
+| 1 | Create directory tree (`.dfw-state/` first) | `create-directories` |
+| 2 | Generate `.dfw/project.json` | `generate-project-json` |
+| 3 | Generate `.dfw/constitution.json` | `generate-constitution-json` |
+| 4 | Generate `.dfw/personal-config.md` | `generate-personal-config` |
+| 5 | Copy files from `X:\DFW\Tools` | `copy-from-tool` |
+| 6 | Write structural files | `write-structural-files` |
+| 7 | Create Obsidian vault stub | `create-vault-stub` |
+| 8 | Display status card | `display-status-card` |
+| 9 | Write initial handoff (optional) | `write-handoff` |
+
+**After each step:** Update the state file — set the step to `done`, update `lastCompletedStep` and `updatedAt`. See [State Protocol](/operating-manual/state-protocol) for state file schema.
+
+---
+
+### Step 0: Gather Inputs
+
+Ask the user for these inputs. Do NOT proceed until all required inputs are confirmed.
+
+| Input | Required | Options | Default |
+|-------|----------|---------|---------|
+| **Project name** | YES | kebab-case string (e.g., `my-project`) | — |
+| **Project directory** | YES | Full path (e.g., `X:\my-project`) | `X:\<project-name>` |
+| **Project type** | YES | `application`, `library`, `platform`, `research`, `vertical` | — |
+| **Architecture** | Only if type = `application` | `backend-only`, `frontend-only`, `full-stack`, `manual` | — |
+| **Include source dirs** | NO | `yes` / `no` | `yes` for application, `no` for others |
+| **Persona** | NO | Exotic dancer name | `Donna` |
+
+**After gathering inputs:** Create the initial state file at `X:\DFW\Tools\.dfw-state\<project-name>-scaffold.json` with all inputs stored and `gather-inputs` set to `done`. This is the first write — if the session dies after this point, the next session has all inputs and never re-asks.
+
+---
+
+### Step 1: Create Directory Tree
+
+Create all directories. The exact tree depends on project type and architecture.
+
+**First:** Create `.dfw-state/` in the project root. This is the FIRST directory created so the state file can be moved from `X:\DFW\Tools\.dfw-state\` into the project immediately. Then create the rest.
+
+**Core directories (ALL project types):**
+
+```
+<project-root>/
+├── .dfw-state/
+├── .dfw/
+├── .cursor/
+│   ├── rules/
+│   └── skills/
+├── docs/
+│   └── ADR/
+├── plans/
+├── prompts/
+│   ├── system/
+│   ├── handoffs/
+│   └── templates/
+├── context/
+│   └── retrospectives/
+├── research/
+│   └── sources/
+└── scripts/
+    ├── scaffold/
+    └── hooks/
+```
+
+**Source directories (if `includeSource = yes`):**
+
+| Architecture | Directories |
+|-------------|-------------|
+| `backend-only` | `app/`, `tests/` |
+| `frontend-only` | `src/`, `tests/` |
+| `full-stack` | `backend/app/`, `backend/tests/`, `frontend/src/`, `frontend/tests/` |
+| `manual` | *(none — user creates their own)* |
+| *(non-application types)* | `src/`, `tests/` |
+
+---
+
+### Step 2: Generate `.dfw/project.json`
+
+Write this file with the following JSON structure. Replace placeholders with actual values.
+
+**PID Generation:** Generate a unique Project ID (`PID-XXXXX`) — 5 random uppercase alphanumeric characters prefixed with `PID-`. Verify uniqueness against the global registry at `X:\DFW\Vault\projects\_pid-registry.md` before writing.
+
+```json
+{
+  "pid": "PID-XXXXX",
+  "name": "<project-name>",
+  "type": "<project-type>",
+  "version": "1.0.0",
+  "created": "<YYYY-MM-DD>",
+  "methodology": "devflywheel",
+  "dfwVersion": "0.8.0",
+  "subprojects": [],
+  "constitution": "./constitution.json",
+  "tags": {},
+  "architecture": "<architecture-if-application>"
+}
+```
+
+Omit the `"architecture"` field if the project type is not `application`.
+
+### Step 2A: Register PID in Global Registry
+
+Append a row to `X:\DFW\Vault\projects\_pid-registry.md` with the new project's PID, name, directory, type, and status. This registry is the single source of truth for PID-to-project mapping across the entire DFW ecosystem.
+
+---
+
+### Step 3: Generate `.dfw/constitution.json`
+
+```json
+{
+  "schemaVersion": 1,
+  "naming": { "project": "lowercase-kebab-case" },
+  "scopeBoundaries": "root-global, subproject-local",
+  "notes": "Project-level conventions for DevFlywheel tooling."
+}
+```
+
+---
+
+### Step 4: Generate `.dfw/personal-config.md`
+
+Read the template at `X:\DFW\Tools\Constitution\personal-config-template.md` and fill in the values:
+
+```markdown
+# DFW Personal Configuration
+
+> This file is NOT committed to git. Add `.dfw/personal-config.md` to `.gitignore`.
+
+## Environment
+
+| Setting | Value |
+|---------|-------|
+| **DFW Root** | `<parent directory of project>` |
+| **Tool Repository** | `X:\DFW\Tools` |
+| **Obsidian Vault** | `X:\DFW\Vault` |
+| **Drive Alias** | `X:` → `C:\DATA` via `subst` |
+
+## Tool-to-Directory Mappings
+
+| Tool | Path |
+|------|------|
+| Cursor Workspace | `<project-path>` |
+
+> Template source: `X:\DFW\Tools\Constitution\personal-config-template.md`
+```
+
+---
+
+### Step 5: Copy Files from `X:\DFW\Tools`
+
+Copy these files from the Tool repository into the new project. If a source file does not exist, skip it gracefully and inform the user.
+
+| Source | Destination | Notes |
+|--------|-------------|-------|
+| `X:\DFW\Tools\Constitution\CLAUDE-PROJECT-TEMPLATE.md` | `<project>/CLAUDE.md` | Rename on copy — Claude model entry point |
+| `X:\DFW\Tools\Constitution\DFW-CONSTITUTION.md` | `<project>/docs/DFW-CONSTITUTION.md` | Universal rules |
+| `X:\DFW\Tools\Manuals\DFW-OPERATING-MANUAL.md` | `<project>/docs/DFW-OPERATING-MANUAL.md` | Methodology |
+| `X:\DFW\Tools\Constitution\DFW-GLOSSARY.md` | `<project>/docs/DFW-GLOSSARY.md` | Terminology |
+| `X:\DFW\Tools\rules/*.mdc` (ALL `.mdc` files) | `<project>/.cursor/rules/<filename>` | Copy each file |
+| `X:\DFW\Tools\scripts\Resync-PromptsAndPlans.ps1` | `<project>/scripts/Resync-PromptsAndPlans.ps1` | |
+
+---
+
+### Step 6: Write Structural Files
+
+Create each of these files with the exact content shown. Replace `<name>` with the kebab-case project name, `<DisplayName>` with title-cased name, and `<date>` with today's date (YYYY-MM-DD).
+
+#### `docs/PROJECT_OVERVIEW.md`
+
+```markdown
+---
+type: project-overview
+created: <date>
+status: active
+tags: [<name>]
+---
+
+# <DisplayName> — Project Overview
+
+> **Mission:** [Define the project's purpose]
+
+---
+
+## Scope
+
+## Success Metrics
+
+## Links
+```
+
+#### `docs/ARCHITECTURE.md`
+
+```markdown
+---
+type: architecture
+created: <date>
+status: draft
+tags: [<name>, architecture]
+---
+
+# <DisplayName> — Architecture
+
+## Overview
+
+## Key Decisions
+```
+
+#### `docs/CHANGELOG.md`
+
+```markdown
+# Changelog
+
+## [Unreleased]
+
+- Initial scaffold (<date>)
+```
+
+#### `docs/ADR/_TEMPLATE.md`
+
+```markdown
+---
+type: adr
+created: <date>
+status: proposed
+---
+
+# ADR — <Title>
+
+## Context
+
+## Decision
+
+## Consequences
+```
+
+#### `plans/_TODO.md`
+
+```markdown
+---
+type: task-list
+project: <name>
+updated: <date>
+---
+
+# Active Tasks
+
+## In Progress
+
+## Up Next
+
+## Blocked
+```
+
+#### `plans/_WISHLIST.md`
+
+```markdown
+# Wishlist
+
+-
+```
+
+#### `plans/_ROADMAP.md`
+
+```markdown
+# Roadmap
+
+## Phase 0
+-
+```
+
+#### `prompts/handoffs/_TEMPLATE.md`
+
+```markdown
+---
+type: handoff
+from: <tool>
+to: <tool>
+created: <date>
+---
+
+# Context Handoff
+
+## Current State
+
+## What Was Accomplished
+
+## What's Next
+
+## Key Decisions Made
+
+## Open Questions
+```
+
+#### `context/_ACTIVE_CONTEXT.md`
+
+```markdown
+# Active Context
+
+- Updated: <date>
+- Current focus:
+- Agent constitution: [CLAUDE.md](../CLAUDE.md)
+- Operating manual: [docs/DFW-OPERATING-MANUAL.md](docs/DFW-OPERATING-MANUAL.md)
+
+## Notes
+```
+
+#### `context/_DECISIONS_LOG.md`
+
+```markdown
+# Decisions Log
+
+## <date>
+- Initial scaffold created.
+```
+
+#### `scripts/scaffold/README.md`
+
+```markdown
+# Scaffold Scripts
+
+Place automation here.
+```
+
+#### `scripts/hooks/README.md`
+
+```markdown
+# Git Hooks
+
+Place hook scripts here.
+```
+
+#### `.gitignore`
+
+Base content (always include):
+
+```
+.env
+.DS_Store
+Thumbs.db
+
+# DFW caches, personal config, and state files
+.dfw/.resync-sequence-cache.json
+.dfw/.resync-graph-cache.json
+.dfw/personal-config.md
+.dfw/session-state.json
+.dfw-state/
+```
+
+Add architecture-specific blocks:
+
+| Architecture | Add |
+|-------------|-----|
+| `backend-only` | Python: `.venv/`, `venv/`, `__pycache__/`, `*.pyc`, `.pytest_cache/`, `*.egg-info/` |
+| `frontend-only` | Node/TypeScript: `node_modules/`, `dist/`, `out/` |
+| `full-stack` | Both Python and Node blocks |
+| *(default)* | Node block |
+
+#### `README.md`
+
+```markdown
+# <DisplayName>
+
+Generated by DevFlywheel scaffolding.
+
+## Layout
+- docs/ — long-lived documentation
+- plans/ — TODOs, wishlist, roadmap
+- prompts/ — system prompts and handoffs
+- context/ — active context and decisions
+- .dfw/ — project metadata
+```
+
+Append architecture-specific lines:
+
+| Architecture | Append |
+|-------------|--------|
+| `backend-only` | `- app/ — Python application source` and `- tests/ — Python tests` |
+| `frontend-only` | `- src/ — TypeScript / React source` and `- tests/ — Frontend tests` |
+| `full-stack` | `- backend/ — Python backend (app/, tests/)` and `- frontend/ — TypeScript frontend (src/, tests/)` |
+
+---
+
+### Step 7: Create Obsidian Vault Stub
+
+Write a project stub at `X:\DFW\Vault\projects/<project-name>/_index.md`:
+
+```markdown
+---
+type: project-stub
+pid: <PID-XXXXX>
+status: active
+project_dir: <project-path>
+last_session: <date>
+tags: [project, <project-name>]
+---
+
+# <DisplayName>
+
+**PID:** `<PID-XXXXX>`
+**Directory:** `<project-path>`
+**Type:** <project-type>
+**Status:** active
+```
+
+Create the `X:\DFW\Vault\projects/<project-name>/` directory if it does not exist.
+
+### Step 7B: Create CardBoard Kanban Board
+
+Add a CardBoard board entry for the new project to the Obsidian vault's CardBoard plugin config.
+
+**Config file:** `C:\DATA\DFW\Vault\.obsidian\plugins\card-board\data.json`
+
+<Warning>
+**Path and Timing Rules:**
+- **Always write via `C:\DATA\...`** (the real filesystem path), NEVER via a `subst` alias like `X:\`. Obsidian uses the real path internally; writes to the alias may not be seen.
+- **Obsidian MUST be fully closed** before writing `data.json`. If CardBoard's view was open, its in-memory state will overwrite any external changes on startup. Verify no `Obsidian.exe` process exists in Task Manager.
+- **Remove stale CardBoard view from `workspace.json`** if present. If `workspace.json` contains a leaf with `"type": "card-board-view"`, delete that leaf entry and set `"currentTab"` to `0` — otherwise Obsidian restores the view on launch and can clobber the config.
+</Warning>
+
+**Procedure:**
+
+1. Read the existing `data.json`. If it does not exist, create the default structure (version `"0.13.0"`, empty `boardConfigs`, standard `globalSettings`).
+2. Check if a board with the project name already exists — if so, skip.
+3. Append a new board to `data.json > data > boardConfigs`:
+
+```json
+{
+  "columns": [
+    {
+      "tag": "namedTag",
+      "data": { "collapsed": false, "name": "status/backlog", "tag": "status/backlog" }
+    },
+    {
+      "tag": "namedTag",
+      "data": { "collapsed": false, "name": "status/active", "tag": "status/active" }
+    },
+    {
+      "tag": "namedTag",
+      "data": { "collapsed": false, "name": "status/build", "tag": "status/build" }
+    },
+    {
+      "tag": "namedTag",
+      "data": { "collapsed": false, "name": "status/deploy", "tag": "status/deploy" }
+    }
+  ],
+  "filters": [
+    { "tag": "pathFilter", "data": "projects/<project-name>/" }
+  ],
+  "filterPolarity": "Allow",
+  "filterScope": "Both",
+  "name": "<DisplayName>",
+  "showColumnTags": true,
+  "showFilteredTags": true
+}
+```
+
+> **Schema notes (verified against CardBoard v0.13.0 Elm source):**
+> - **Columns:** Each uses `{ "tag": "namedTag", "data": { "collapsed": bool, "name": string, "tag": string } }`. The `tag` field inside `data` is the tag without the `#` prefix.
+> - **Filters:** Use `{ "tag": "pathFilter", "data": "<path-string>" }` — the tag is `"pathFilter"` (not `"path"`), and `data` is a **plain string** (not an object). For tag filters: `"tagFilter"`. For file filters: `"fileFilter"`.
+> - **showColumnTags / showFilteredTags:** Must be `true` for proper rendering.
+> - **Completed column (optional):** Add `{ "tag": "completed", "data": { "collapsed": false, "index": <N>, "limit": 10, "name": "Completed" } }` where `<N>` is the column's zero-based position.
+
+4. Write the updated `data.json` back to `C:\DATA\DFW\Vault\...`. Preserve all existing boards and `globalSettings`.
+5. Inform the user: "Close and reopen Obsidian, then click the CardBoard ribbon icon to see the new board."
+
+### Step 7C: MCP Config — Add Project Path
+
+Ask the user: **"MCP Config: Is this a DFW project, a service, or a standalone project?"**
+
+- Default answer: **project** (most common)
+- The answer determines which MCP filesystem server in `claude_desktop_config.json` gets the new path.
+
+| Answer | MCP Server Key | What Gets Added |
+|--------|---------------|-----------------|
+| `dfw` | `dfw-filesystem` | `X:\<project-name>` and `C:\DATA\<project-name>` |
+| `service` | `services-filesystem` | `X:\<project-name>` and `C:\DATA\<project-name>` |
+| `project` | `projects-filesystem` | `X:\<project-name>` and `C:\DATA\<project-name>` |
+
+Read `claude_desktop_config.json` (typically at `%APPDATA%\Claude\claude_desktop_config.json` on Windows), append the path(s) to the correct server's `args` array, and write it back.
+
+> **MCP Path Rule:** Only add the project ROOT path to the MCP config.
+> The filesystem server grants recursive access to all subdirectories automatically.
+> Do NOT list individual subdirectories (`docs/`, `plans/`, etc.) — this is
+> redundant and creates maintenance burden.
+
+**Warn the user:** "Claude Desktop must be restarted for MCP config changes to take effect."
+
+If the agent cannot access the Claude Desktop config file (permissions, path unknown), inform the user and provide the manual JSON snippet to add.
+
+---
+
+### Step 8: Display Constitution Status Card
+
+After completing all steps, display:
+
+```
+╔══════════════════════════════════════════════════════╗
+║  DFW PROJECT CREATED                                 ║
+╠══════════════════════════════════════════════════════╣
+║  Persona:    <persona>                               ║
+║  Project:    <project-name>                          ║
+║  Type:       <project-type>                          ║
+║  Arch:       <architecture or n/a>                   ║
+║  Directory:  <project-path>                          ║
+║  Vault Stub: ✅ CREATED                              ║
+║  CLAUDE.md:  ✅ copied                               ║
+║  Manual:     ✅ copied                               ║
+║  Rules:      ✅ <N> .mdc files copied                ║
+║  Config:     ✅ generated                            ║
+║  CardBoard:  ✅ board created                        ║
+║  MCP Config: ✅ path added / ⚠️ manual required     ║
+╚══════════════════════════════════════════════════════╝
+```
+
+---
+
+### Step 9: Write Initial Handoff (Optional)
+
+If the project was created in Claude Desktop and will be picked up by Cursor or Claude Code, write an initial handoff at `<project>/prompts/handoffs/<YYYY-MM-DD>_initial-scaffold-handoff.md`:
+
+```markdown
+---
+type: handoff
+from: Claude Desktop
+to: Cursor Agent
+created: <date>
+sessionId: <sessionId>
+source: claude-desktop
+description: Initial project scaffold — ready for implementation
+---
+
+# Handoff — Initial Scaffold
+
+**Project:** <DisplayName>
+**Type:** <project-type>
+**Architecture:** <architecture>
+**Directory:** <project-path>
+
+## What Was Created
+- Full DFW directory structure
+- CLAUDE.md (agent constitution)
+- DFW Operating Manual
+- DFW Glossary
+- <N> Cursor rules (.mdc files)
+- Resync script
+- Personal config
+- Obsidian vault stub
+
+## What's Next
+- [ ] Open in Cursor and verify structure with `DFW: Doctor`
+- [ ] Run `DFW: Align` to validate compliance
+- [ ] Begin implementation planning
+```

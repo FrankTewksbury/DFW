@@ -1,0 +1,79 @@
+---
+title: "Tagging System"
+description: "The DFW tag taxonomy for status, priority, source, and routing"
+icon: "tags"
+---
+
+## DFW Tagging — The Context Language
+
+Tags are the DFW context language. They encode lifecycle state, priority, origin, and routing in a format that is both machine-readable and human-scannable. Every AI agent MUST understand and apply DFW tags correctly.
+
+**Format:** `#category/value` — always lowercase, always this structure.
+
+### Status Tags — Task Lifecycle
+
+Status tags track where a task sits in its lifecycle. Every task in `_TODO.md` and every task-bearing markdown file MUST have exactly one status tag.
+
+```
+#status/backlog → #status/active → #status/build → #status/deploy → #status/done
+```
+
+| Tag | Meaning | When to Apply |
+|-----|---------|---------------|
+| `#status/backlog` | Identified but not started | New task discovered during a session |
+| `#status/active` | Currently being worked on | Task picked up for the current session or sprint |
+| `#status/build` | In implementation | Code is being written, artifact is being produced |
+| `#status/deploy` | Built, awaiting validation or deployment | Implementation complete, pending review |
+| `#status/done` | Complete | Task finished — add `@completed(YYYY-MM-DDTHH:MM:SS-TZ)` timestamp |
+
+**Completion convention:** When marking a task done, append a timestamp:
+
+```markdown
+- [x] Implement login flow #status/done @completed(2026-02-20T14:30:00-05:00)
+```
+
+### Priority Tags
+
+Every new task MUST receive both a `#status/` tag AND a `#priority/` tag at creation.
+
+| Tag | Meaning |
+|-----|---------|
+| `#priority/critical` | Blocking other work. Address immediately. |
+| `#priority/important` | High impact. Address this session or next. |
+| `#priority/normal` | Standard priority. Scheduled in normal flow. |
+| `#priority/low` | Nice to have. Address when bandwidth allows. |
+
+### Source Tags — Where It Came From
+
+Source tags record the origin of a task or artifact. This enables traceability.
+
+| Tag | Meaning |
+|-----|---------|
+| `#source/session` | Created during a working session |
+| `#source/review` | Created during code review or retrospective |
+| `#source/dfw-feedback` | Methodology friction discovered during product work — auto-routes to the DFW project backlog |
+| `#source/ambiguity` | Created when P3 (Ambiguity Stops Work) was triggered — records a gap that caused confusion. **Auto-routes to DFW backlog** alongside `#route/dfw` so the methodology can be improved to prevent recurrence. |
+| `#source/manual` | Manually added by a human outside a session |
+
+### Route Tags — Where the Agent Should Put It
+
+When an item surfaces mid-conversation and needs to be filed, route tags tell the agent where it belongs.
+
+| Tag | Meaning |
+|-----|---------|
+| `#route/todo` | Add to the current project's `plans/_TODO.md` |
+| `#route/journal` | Include in the session's journal entry |
+| `#route/global` | This applies across projects — route to Obsidian global scope |
+| `#route/project` | This is project-specific — keep in the project directory |
+| `#route/dfw` | This is methodology feedback — route to the DevFlywheel project backlog |
+
+### Tagging Rules for Agents
+
+These are enforceable. All agents MUST follow them.
+
+1. **Every new task** created by an agent MUST have both `#status/` and `#priority/` tags.
+2. **Every completed task** MUST have `#status/done` and an `@completed()` timestamp.
+3. **Every methodology friction item** MUST be tagged `#source/dfw-feedback #route/dfw`.
+4. **Every ambiguity resolution** MUST be tagged `#source/ambiguity #route/dfw` — ambiguity always auto-routes to the DFW backlog so the methodology can be improved.
+5. **When routing is unclear**, ask the user (P3) — do not guess the route tag.
+6. **Tags are append-only in context.** When a status changes, update the tag in place — do not create duplicate entries.

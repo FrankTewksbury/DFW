@@ -1,0 +1,57 @@
+---
+title: "Prerequisites"
+description: "Software requirements for running DFW"
+icon: "check"
+---
+
+## Step 0: Choose Your Target Directory
+
+Before anything else, decide on a **single root directory** that will contain ALL DFW projects, the Obsidian vault, and the Tools repo. This directory is the **security boundary** — AI tools will ONLY have filesystem access within it.
+
+```powershell
+# The setup script will create this for you. Examples:
+# C:\Projects     D:\Projects     X:\Projects
+```
+
+<Warning>
+**Rules for the Target Directory:**
+- All MCP filesystem server paths MUST point inside this directory
+- All project directories MUST be created inside this directory
+- The Obsidian vault MUST be inside this directory
+- NEVER point MCP servers at paths above the Target Directory
+- This prevents AI agents from accessing SSH keys, credentials, browser profiles, or anything outside the containment boundary
+</Warning>
+
+## Prerequisites
+
+| Tool | Required | Notes |
+|------|----------|-------|
+| **PowerShell 7.0+** | Yes | [Download](https://github.com/PowerShell/PowerShell/releases) — Windows ships with 5.1, which is **NOT** sufficient |
+| **Git** | Yes | [Download](https://git-scm.com/downloads) — auto-installed by `Start-Here.ps1` via winget if missing |
+| **Node.js** (LTS) | Yes | [Download](https://nodejs.org) — auto-installed by `Start-Here.ps1` via winget if missing |
+| **Obsidian** | Yes | [Download](https://obsidian.md) — free, no account required |
+| **Claude Desktop** | Yes | [Download](https://claude.ai/download) |
+| **Cursor** | Yes | [Download](https://cursor.com) |
+
+### Obsidian Plugin Requirements
+
+Obsidian requires two community plugins for DFW integration:
+
+| Plugin | ID | Purpose |
+|--------|----|---------|
+| **Local REST API** | `obsidian-local-rest-api` | Bridge between Claude Desktop and your vault |
+| **MCP Tools** | `mcp-tools` | MCP server integration for Obsidian |
+
+<Info>
+- Obsidian must be **running** whenever Claude Desktop needs vault access.
+- After installing Local REST API, generate an API key in its settings — you'll need it for the Claude Desktop config.
+- Verify the REST API is working by opening `http://localhost:27124` in a browser.
+</Info>
+
+## Important: Drive Mappings and MCP
+
+If you use Windows `subst` to map a drive letter (e.g., `X:` → `C:\DATA`), be aware that MCP filesystem servers do **not** resolve drive aliases. Always configure MCP with the **real path** (`C:\DATA\...`), not the mapped drive letter (`X:\...`).
+
+<Warning>
+MCP servers use string matching, not filesystem resolution. A path like `X:\Projects\DFW` will fail even if `X:` is a valid `subst` mapping. Always use the underlying real path in all MCP configuration.
+</Warning>

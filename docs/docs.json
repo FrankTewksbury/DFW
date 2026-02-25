@@ -1,0 +1,68 @@
+{
+  "$schema": "https://mintlify.com/docs.json",
+  "theme": "mint",
+  "name": "DFW — Development Flywheel",
+  "colors": {
+    "primary": "#0ea5e9",
+    "light": "#38bdf8",
+    "dark": "#0284c7"
+  },
+  "favicon": "/favicon.svg",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Getting Started",
+            "pages": [
+              "introduction",
+              "getting-started/prerequisites",
+              "getting-started/quick-start",
+              "getting-started/setup-guide",
+              "getting-started/troubleshooting"
+            ]
+          },
+          {
+            "group": "Constitution",
+            "pages": [
+              "constitution/principles",
+              "constitution/behavioral-rules",
+              "constitution/file-safety",
+              "constitution/scope-rules",
+              "constitution/project-protocols"
+            ]
+          },
+          {
+            "group": "Operating Manual",
+            "pages": [
+              "operating-manual/overview",
+              "operating-manual/directory-structure",
+              "operating-manual/tagging",
+              "operating-manual/context-and-handoffs",
+              "operating-manual/tool-assignments",
+              "operating-manual/session-lifecycle",
+              "operating-manual/journal-and-flywheel",
+              "operating-manual/kanban",
+              "operating-manual/tools-and-integrations",
+              "operating-manual/governance",
+              "operating-manual/scaffold-protocol",
+              "operating-manual/state-protocol"
+            ]
+          },
+          {
+            "group": "Reference",
+            "pages": [
+              "reference/glossary",
+              "reference/mcp-architecture",
+              "reference/version-history"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "footerSocials": {
+    "github": "https://github.com/FrankTewksbury/DFW"
+  }
+}

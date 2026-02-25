@@ -1,0 +1,37 @@
+---
+title: "Quick Start"
+description: "Get DFW running in under 5 minutes"
+icon: "rocket"
+---
+
+## Two Commands
+
+Open PowerShell 7+ and run:
+
+```powershell
+git clone https://github.com/FrankTewksbury/DFW.git
+.\DFW\Start-Here.ps1
+```
+
+That's it. The script handles the rest.
+
+## What the Script Does
+
+`Start-Here.ps1` performs six steps automatically:
+
+| Step | Action |
+|------|--------|
+| 1 | **Check prerequisites** — installs Git and Node.js via winget if missing |
+| 2 | **Ask for your drive letter** — where the Target Directory will live |
+| 3 | **Create directories** — sets up `<drive>:\Projects\` and clones DFW there |
+| 4 | **Clone and scaffold** — creates the Obsidian vault and scaffolds the DFWP meta-project |
+| 5 | **Generate config** — produces a ready-to-use `claude-desktop-config.json` |
+| 6 | **Print next steps** — displays step-by-step instructions to finish setup |
+
+After the script completes, follow the [Full Setup Guide](/getting-started/setup-guide) for Obsidian plugin installation, API key setup, and Claude Desktop configuration.
+
+<Warning>
+**After editing `claude_desktop_config.json`, you MUST fully quit and relaunch Claude Desktop.**
+
+Close from the **system tray** — not just the window. MCP config changes are only loaded at startup. Closing the window leaves Claude running in the background with the old config.
+</Warning>

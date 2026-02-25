@@ -1,0 +1,32 @@
+---
+title: "Overview"
+description: "What DFW is and the three-tier scope model"
+icon: "circle-info"
+---
+
+## What DFW Is — Read This First
+
+**DFW stands for Development Flywheel.** It is the mandatory project management and development lifecycle methodology for every project in this ecosystem.
+
+- Every project we **create** follows DFW from day one.
+- Every project we **adopt** (existing codebase, inherited repo) gets migrated to DFW.
+- Every AI agent working in this ecosystem operates under DFW rules.
+- There are no DFW-exempt projects.
+
+**The core thesis:** Context, memory, state, rules, and skills compound across sessions and projects. Every project makes the next one better. Every session starts where the last one left off — not from zero. This compounding effect is the flywheel.
+
+**If you are an agent and you don't know what DFW is, re-read this section. Do not proceed until you understand it.**
+
+---
+
+## The Three-Tier Scope Model
+
+All work exists at one of three scope levels. The scope level determines where artifacts live, which rules apply, and how context flows.
+
+| Tier | Where It Lives | What Belongs Here | Examples |
+|------|---------------|-------------------|----------|
+| **Global** | Obsidian vault (`meta/`, `journal/`) + `~/.claude/CLAUDE.md` | Cross-project rules, methodology, daily journals, tag taxonomy | Tag routing, scope rules, DFW principles, journal entries |
+| **Project** | Project directory (`<project>/`) + project `CLAUDE.md` | Project-specific deliverables, state, decisions, context | Specs, plans, TODOs, active context, ADRs, code |
+| **Subproject** | Subdirectory within a project | Feature or component-level work | Feature branch context, sprint-level state |
+
+**The rule:** Global scope serves all projects. Project scope serves one. Never let project concerns pollute global scope, and never let global conventions be overridden locally without explicit amendment.

@@ -1,0 +1,118 @@
+---
+title: "Behavioral Rules"
+description: "Enforceable directives for all AI agents operating under DFW"
+icon: "gavel"
+---
+
+These are **enforceable directives**. Use RFC 2119 language: MUST, MUST NOT, SHOULD, MAY.
+All agents MUST follow these regardless of provider.
+
+### No Destructive Operations on Pre-Existing Files
+
+- Agents MUST NOT delete, overwrite, or destroy any file that existed before the current session.
+- This includes source files being refactored — create new versions, never delete originals.
+- Agents MAY create temporary or scratch files during a session and clean them up before the session ends.
+- Agents MAY only delete files they themselves created in the **current session**.
+- Even with explicit user instruction to delete a pre-existing file, agents MUST confirm and warn before proceeding.
+- Structural files (`_TODO.md`, `_WISHLIST.md`, `_ROADMAP.md`, `_ACTIVE_CONTEXT.md`, `_DECISIONS_LOG.md`, `README.md`, `CHANGELOG.md`, `ARCHITECTURE.md`, `PROJECT_OVERVIEW.md`) MUST NEVER be deleted.
+
+> **Derives from:** P1 (Context Is Currency), P4 (Explicit Over Implicit)
+
+### Secrets Are Sacred
+
+- Agents MUST NOT read, output, log, persist, or display the contents of:
+  - `.env` files (or any `.env.*` variant)
+  - Files or directories named `secrets/`, `credentials/`, or `creds/`
+  - Any file containing API keys, tokens, passwords, connection strings, or private keys
+- Agents MUST NOT commit secrets to version control.
+- Agents MUST NOT include secret values in sequenced artifacts, chat output, log files, or console output.
+- When a script or configuration needs credentials, agents MUST reference environment variables **by name only** — never by value (e.g., `os.getenv("API_KEY")`, never the key itself).
+- If a user asks to commit, persist, or output a file that likely contains secrets, agents MUST warn and refuse.
+- **Safe word override:** This rule MAY be temporarily bypassed ONLY when ALL of the following conditions are met:
+  1. The user **explicitly commands** the agent to access secret material.
+  2. The user **supplies the project safe word** in the same instruction.
+  3. The safe word was set during project initialization and is stored in `.dfw/config.json` (agents MUST verify it matches before proceeding).
+  4. The override applies to the **single requested operation only** — the rule re-engages immediately after.
+- If the safe word is not provided or does not match, the agent MUST refuse regardless of user instruction.
+
+> **Derives from:** P1 (Context Is Currency), P7 (Scope Boundaries Are Sacred)
+
+### Persist All Artifacts
+
+- All AI-generated plans, prompts, specs, handoffs, context documents, research, and analysis MUST be persisted as sequenced Markdown files.
+- NEVER output a plan, analysis, or decision only in chat. It MUST also be written to the correct DFW directory.
+- Every sequenced file MUST use the `NNN-type-slug.md` naming pattern (see Operating Manual Section 9).
+- Every sequenced file MUST include YAML frontmatter with at minimum `type` and `created`.
+
+> **Derives from:** P1 (Context Is Currency), P4 (Explicit Over Implicit)
+
+### Follow Directory Conventions and File Sequencing — No Exceptions
+
+- ALL agents MUST route artifacts to the correct DFW directory based on artifact type (see Operating Manual Section 3).
+- ALL agents MUST follow the `NNN-type-slug.md` sequencing convention (see Operating Manual Section 9).
+- Sequencing is per-directory. Each directory maintains its own independent counter.
+- Before creating a file, check existing files in the target directory and use `(max NNN) + 1`.
+- If no sequenced files exist in the directory, start at `001`.
+- MUST NOT reuse a sequence number.
+- Directory names are ALWAYS lowercase. Never use `Plans/`, `Docs/`, `Prompts/`, etc.
+
+> **Derives from:** P4 (Explicit Over Implicit), P7 (Scope Boundaries Are Sacred)
+
+### Ask Before Assuming
+
+- When paths, destinations, tooling choices, or scope are ambiguous, agents MUST ask the user before proceeding.
+- MUST NOT guess at file locations, directory structures, or naming when uncertain.
+- MUST NOT default to workarounds (e.g., zip files, temp directories) when direct access may exist — ask first.
+- When P3 (Ambiguity Stops Work) is triggered, tag the item `#source/ambiguity #route/dfw`.
+
+> **Derives from:** P2 (Humans Steer), P3 (Ambiguity Stops Work), P4 (Explicit Over Implicit)
+
+### Humans Steer, Agents Execute
+
+- Agents MUST NOT make autonomous decisions about project direction, architecture, or scope.
+- Agents execute what the user requests. When the request is unclear, ask for clarification.
+- Agents SHOULD propose options and trade-offs, but the user makes the final call.
+- All output is subject to human review and approval before it ships (P2).
+
+> **Derives from:** P2 (Humans Steer, AI Recommends, Plans, Executes)
+
+### Small, Composable Artifacts
+
+- Prefer multiple small, focused files over monolithic outputs.
+- Each artifact SHOULD be independently useful and reusable.
+- When generating related outputs in a single session, each gets its own sequenced file, correlated by a shared `sessionId`.
+
+> **Derives from:** P5 (Small, Composable Units)
+
+### Close the Feedback Loop
+
+- After completing a multi-step task, update `context/_ACTIVE_CONTEXT.md` with current focus and status.
+- After making significant decisions, append to `context/_DECISIONS_LOG.md`.
+- After a session with meaningful work, consider creating a journal entry.
+- Tag all feedback items appropriately: `#source/dfw-feedback` for methodology, `#source/ambiguity` for gaps.
+
+> **Derives from:** P6 (Feedback Closes the Loop)
+
+### Failure Retrospective
+
+- When a plan, build, or debug cycle **fails**, agents MUST NOT just retry blindly.
+- Agents MUST stop and ask: **What failed and why?**
+  - Was it the **model** (wrong model for the task, capability limitation)?
+  - Was it the **prompt** (ambiguous, missing context, poorly structured)?
+  - Was it the **context** (stale, incomplete, wrong assumptions)?
+  - Was it the **user instruction** (unclear scope, conflicting requirements)?
+- After determining root cause, agents MUST:
+  1. Persist a retrospective artifact: `context/NNN-retro-*.md`
+  2. Create actionable TODOs in `plans/_TODO.md` with proper `#status/` and `#priority/` tags.
+  3. If the failure reveals a methodology gap, tag `#source/dfw-feedback #route/dfw`.
+- This is non-negotiable. Failures without retrospectives are wasted learning.
+
+> **Derives from:** P6 (Feedback Closes the Loop), P9 (Measure Before Optimizing)
+
+### Use UV for Python
+
+- UV is the mandatory Python package and environment manager.
+- MUST NOT use pip, conda, or poetry unless UV is unavailable and the deviation is logged.
+- Commands: `uv venv`, `uv pip install`, `uv pip freeze`.
+
+> **Derives from:** P8 (Tools Are Fit-for-Purpose)

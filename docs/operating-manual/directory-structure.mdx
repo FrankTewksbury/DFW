@@ -1,0 +1,32 @@
+---
+title: "Directory Structure"
+description: "Standard directory layout for all DFW projects"
+icon: "folder-tree"
+---
+
+## DFW Standard Directory Structure
+
+Every DFW project MUST have this directory structure. The DFW Extension scaffolds it automatically. If adopting an existing project, these directories MUST be created.
+
+```
+<project-root>/
+├── .dfw/                    # DFW metadata — project identity, constitution
+│   ├── project.json         # Project manifest (name, type, version, DFW version)
+│   ├── constitution.json    # Project-level rules (tool conventions, naming)
+│   └── personal-config.md   # Environment-specific paths and tool mappings (NOT committed)
+├── docs/                    # Long-lived documentation, specs, ADRs, architecture
+│   ├── DFW-GLOSSARY.md      # DFW terminology reference (copy from template)
+│   └── DFW-OPERATING-MANUAL.md  # This file (copy from template)
+├── plans/                   # TODOs, roadmaps, wishlists, sprint plans
+│   └── _TODO.md             # Active task list (structural file, not sequenced)
+├── prompts/                 # System prompts, handoffs, reusable templates
+│   └── handoffs/            # Tool-to-tool and session-to-session handoffs
+├── context/                 # Active context, decisions, retrospectives
+│   ├── _ACTIVE_CONTEXT.md   # Current state — what we're working on NOW
+│   └── _DECISIONS_LOG.md    # Running log of architectural/design decisions
+├── research/                # Research artifacts, analysis, reference material
+├── scripts/                 # Automation, hooks, utility scripts
+├── tests/                   # Test artifacts
+├── CLAUDE.md                # Project-specific agent constitution
+└── README.md                # Project overview
+```

@@ -1,0 +1,84 @@
+---
+title: "State Protocol"
+description: "How DFW tracks scaffold and operation progress across sessions"
+icon: "database"
+---
+
+## Progressive State Protocol
+
+> **Any multi-step operation that could be interrupted MUST use a progressive state file.**
+> This includes scaffolding, refactoring, migrations, multi-file edits, and research tasks.
+> The state file is updated after EVERY completed step so that a crashed or timed-out session
+> can be resumed without re-executing completed work or re-asking answered questions.
+
+### State File Location
+
+| Scenario | Location |
+|----------|----------|
+| **In-project** (project directory exists) | `<project>/.dfw/session-state.json` |
+| **Kickstart** (no project yet) | `X:\DFW\Tools\.dfw-state\<project-name>-<operation>.json` |
+| **Post-scaffold** (project just created) | Move kickstart state to `<project>/.dfw/session-state.json` |
+
+### JSON Schema
+
+```json
+{
+  "sessionId": "S20260220_1600",
+  "operation": "scaffold",
+  "project": "my-project",
+  "projectPath": "X:\\my-project",
+  "inputs": {
+    "type": "application",
+    "architecture": "backend-only",
+    "persona": "Donna",
+    "includeSource": true
+  },
+  "startedAt": "2026-02-20T16:00:00",
+  "updatedAt": "2026-02-20T16:03:22",
+  "steps": {
+    "gather-inputs": "done",
+    "create-directories": "done",
+    "generate-project-json": "done",
+    "generate-constitution-json": "done",
+    "generate-personal-config": "in-progress",
+    "copy-from-tool": "pending",
+    "write-structural-files": "pending",
+    "create-vault-stub": "pending",
+    "display-status-card": "pending",
+    "write-handoff": "pending"
+  },
+  "lastCompletedStep": "generate-constitution-json",
+  "notes": "User confirmed all inputs. Using C:\\DATA paths for MCP."
+}
+```
+
+### Step Statuses
+
+| Status | Meaning |
+|--------|---------|
+| `pending` | Not yet started |
+| `in-progress` | Currently executing (set before starting, updated to `done` on completion) |
+| `done` | Successfully completed |
+| `skipped` | Intentionally skipped (e.g., user declined optional step) |
+
+### Rules
+
+1. **Write Before Move** — After completing a step, update the state file to `done` and set `lastCompletedStep` BEFORE starting the next step.
+2. **Inputs Persist** — All user-provided inputs (name, type, architecture, persona, paths) MUST be stored in the `inputs` field so they are never re-asked.
+3. **Resume Check** — On session start, check for an active state file BEFORE initiating any protocol. If one exists with incomplete steps, resume from `lastCompletedStep`. Do not re-execute `done` steps.
+4. **Idempotent Steps** — When resuming, the step after `lastCompletedStep` may have been partially executed. Steps MUST be written to be safe to re-run (check if directory exists before creating, check if file exists before copying).
+5. **Cleanup on Completion** — When ALL steps are `done` or `skipped`:
+   - Move the state file to `.dfw/archive/` (or `X:\DFW\Tools\.dfw-state\archive\` for kickstart)
+   - Write the appropriate retro/handoff artifact in Markdown
+6. **State File Is Not a Deliverable** — It is a transient machine file. It does NOT follow `NNN-type-slug.md` naming. It does NOT get committed to git. Add `.dfw/session-state.json` to `.gitignore`.
+
+### Extending Beyond Scaffolding
+
+The same pattern applies to any multi-step operation. Adjust the `operation` field and `steps` object:
+
+| Operation | Steps |
+|-----------|-------|
+| `scaffold` | gather-inputs, create-directories, generate-project-json, ... (see [Scaffold Protocol](/operating-manual/scaffold-protocol)) |
+| `refactor` | analyze, plan, edit-file-1, edit-file-2, ..., verify, update-context |
+| `migration` | backup, transform-schema, migrate-data, verify, cleanup |
+| `research` | define-scope, source-1, source-2, ..., synthesize, persist-findings |

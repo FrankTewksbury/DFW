@@ -1,0 +1,157 @@
+---
+title: "MCP Architecture"
+description: "How DFW configures Claude Desktop filesystem access"
+icon: "server"
+---
+
+DFW uses a **two-server model** for Claude Desktop filesystem access, plus an Obsidian integration. This page explains the architecture, why it's structured this way, and how to configure it correctly.
+
+## The Three-Server Model
+
+| Server | Purpose | Contains |
+|--------|---------|----------|
+| `dfw-filesystem` | DFW infrastructure | DFW repo + DFWP meta-project |
+| `projects-filesystem` | Project workspaces | Target Directory root (all projects accessible recursively) |
+| `obsidian-mcp-tools` | Obsidian vault access | Connects Claude to your notes via Local REST API |
+
+## Why This Structure?
+
+Each MCP server injects approximately **10 tool definitions** into Claude's context window. Too many servers consume context tokens and cause problems:
+
+- We tested **16 servers** — this caused response truncation and context loss
+- Two filesystem servers plus Obsidian keeps the total manageable
+- The `projects-filesystem` server points at the Target Directory root, granting **recursive access** to all project subdirectories automatically
+
+<Warning>
+**Keep your total MCP server count under 10.** Beyond that threshold, you risk context window saturation and degraded Claude responses.
+</Warning>
+
+## The Subdirectory Anti-Pattern
+
+A common mistake is adding individual project paths as separate MCP servers:
+
+```json
+// DON'T do this — each entry is a separate server eating context
+{
+  "project-a": { "args": ["C:\\Projects\\ProjectA"] },
+  "project-b": { "args": ["C:\\Projects\\ProjectB"] },
+  "project-c": { "args": ["C:\\Projects\\ProjectC"] }
+}
+```
+
+Instead, add only the **project root path**. The filesystem server grants recursive access to all subdirectories:
+
+```json
+// DO this — one server, all projects accessible
+{
+  "projects-filesystem": {
+    "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:\\Projects"]
+  }
+}
+```
+
+## Config File Locations
+
+| Platform | Path |
+|----------|------|
+| **Windows** | `%APPDATA%\Claude\claude_desktop_config.json` |
+| **macOS** | `~/Library/Application Support/Claude/claude_desktop_config.json` |
+
+## Template and Example
+
+DFW provides both a template and a worked example:
+
+- **Template:** `Tools/templates/claude-desktop-config-template.json` — contains `<TARGET_DIR>` placeholders for you to fill in
+- **Example:** `Tools/templates/claude-desktop-config-example.json` — shows a complete working config with annotated comments
+
+### Template
+
+```json
+{
+  "mcpServers": {
+    "dfw-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "<TARGET_DIR>\\DFW",
+        "<TARGET_DIR>\\DFWP"
+      ]
+    },
+    "projects-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "<TARGET_DIR>"
+      ]
+    },
+    "obsidian-mcp-tools": {
+      "command": "npx",
+      "args": ["-y", "obsidian-mcp-tools"],
+      "env": {
+        "OBSIDIAN_API_KEY": "<YOUR_OBSIDIAN_REST_API_KEY>"
+      }
+    }
+  }
+}
+```
+
+### Example
+
+```json
+{
+  "mcpServers": {
+    "dfw-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Projects\\DFW",
+        "C:\\Projects\\DFWP"
+      ]
+    },
+    "projects-filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "C:\\Projects"
+      ]
+    },
+    "obsidian-mcp-tools": {
+      "command": "npx",
+      "args": ["-y", "obsidian-mcp-tools"],
+      "env": {
+        "OBSIDIAN_API_KEY": "PASTE_KEY_FROM_OBSIDIAN_REST_API_PLUGIN_SETTINGS"
+      }
+    }
+  }
+}
+```
+
+## Critical Configuration Rules
+
+<CardGroup cols={2}>
+
+<Card title="All paths within Target Directory" icon="shield">
+Every MCP filesystem path must resolve to a location inside your Target Directory. This is the security boundary — AI tools cannot access anything outside it.
+</Card>
+
+<Card title="Use real paths, not subst" icon="route">
+If you use Windows `subst` to map a drive letter (e.g., `X:` → `C:\DATA`), MCP servers do **not** resolve drive aliases. Always use the real path (`C:\DATA\...`).
+</Card>
+
+<Card title="Double backslashes in JSON" icon="code">
+JSON requires escaped backslashes. Write `C:\\Projects\\DFW`, not `C:\Projects\DFW`.
+</Card>
+
+<Card title="Restart Claude Desktop" icon="rotate">
+After editing `claude_desktop_config.json`, you must **fully quit and relaunch** Claude Desktop. Close from the system tray — not just the window. MCP config is only loaded at startup.
+</Card>
+
+</CardGroup>
+
+<Note>
+The `Start-Here.ps1` bootstrap script generates a ready-to-use `claude-desktop-config.json` with your actual paths filled in. You can use it as-is or customize it further.
+</Note>

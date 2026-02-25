@@ -1,0 +1,39 @@
+---
+title: "Scope Rules"
+description: "Global vs local scope boundaries and what goes where"
+icon: "layer-group"
+---
+
+<Note>
+**Enforceable rule. Follow it in every session.**
+</Note>
+
+**Obsidian vault = GLOBAL scope only.**
+**Project directories = LOCAL scope — all project work product.**
+
+### What Goes in Obsidian (Global)
+
+| Directory | Content | Example |
+|-----------|---------|---------|
+| `projects/<n>/` | **Lightweight stub ONLY** | Status, link to project dir, last session date |
+| `journal/` | Daily journals spanning all projects | Session summaries, cross-project notes |
+| `meta/` | Cross-project rules, conventions, methodology | Scope rules, tag taxonomy, DFW glossary |
+
+### What Goes in the Project Directory (Local)
+
+| Directory | Content |
+|-----------|---------|
+| `docs/` | Specs, architecture, ADRs, overview, glossary, constitution, operating manual |
+| `plans/` | TODO, wishlist, roadmap |
+| `prompts/` | System prompts, handoffs, templates |
+| `context/` | Active context, decisions, retros |
+| `research/` | Research artifacts |
+| `scripts/` | Automation, hooks |
+| `app/`, `src/`, `tests/` | Code |
+
+### Violation Check
+
+Before writing ANY file, ask yourself:
+1. Is this about a specific project's deliverable? → Write to project directory
+2. Is this a journal, methodology doc, or cross-project reference? → Obsidian is OK
+3. Am I unsure? → Ask the user (P3)

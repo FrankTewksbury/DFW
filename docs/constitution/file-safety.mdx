@@ -1,0 +1,68 @@
+---
+title: "File Safety & Access Control"
+description: "Rules for file archiving, restricted directories, and the Target Directory security boundary"
+icon: "shield"
+---
+
+### 4.1 Never Delete — Always Archive
+
+<Warning>
+**CRITICAL RULE: Files are NEVER deleted. They are archived.**
+</Warning>
+
+When a file needs to be removed, replaced, or superseded:
+
+1. Create an `archive/` directory in the **project root** (or subproject root if applicable)
+2. Move the file into `archive/` **preserving the original directory structure** so files with the same name from different directories are not overwritten
+3. Example: archiving `docs/old-spec.md` → `archive/docs/old-spec.md`
+4. Example: archiving `plans/_TODO.md` → `archive/plans/_TODO.md`
+
+**Never use `rm`, `del`, `unlink`, or any destructive file operation on project files.**
+**Never overwrite a file without first archiving the previous version if the content change is substantial.**
+
+Quick formatting fixes, typo corrections, and appending content do NOT require archiving.
+Structural rewrites, file replacements, and major content changes DO require archiving first.
+
+### 4.2 Restricted Directories
+
+<Warning>
+**CRITICAL RULE: Some directories and files are HUMAN-ONLY.**
+</Warning>
+
+**NEVER read, write, list, or access:**
+
+- Any directory named `secrets/`, `secret/`, `.secrets/`
+- Any directory named `ENV/` or `.env/` (the directory, not .env files in project root)
+- Any directory named `credentials/`, `creds/`, `.credentials/`
+- Any directory named `keys/`, `.keys/`
+- Any file matching `*.pem`, `*.key`, `*.pfx`, `*.p12`
+- Any file named `id_rsa`, `id_ed25519`, or similar SSH key patterns
+- AWS credentials files (`~/.aws/credentials`)
+- Any file the user explicitly marks as restricted
+
+**`.env` files in the project root:** You may READ these to understand configuration structure, but NEVER log, display, or repeat actual secret values (API keys, tokens, passwords). You may reference variable NAMES only.
+
+If you encounter a secret value in any context, redact it immediately: `ANTHROPIC_API_KEY=sk-ant-REDACTED`
+
+### 4.3 Target Directory — Security Boundary
+
+<Warning>
+**CRITICAL RULE: All AI-accessible paths MUST be within the Target Directory.**
+</Warning>
+
+The Target Directory (e.g., `C:\Projects`, `D:\Projects`) is the outermost
+boundary for AI tool access. It is set during environment initialization and
+recorded in `personal-config.md`.
+
+- ALL MCP filesystem server paths MUST resolve to locations within the Target Directory.
+- ALL project directories created by scaffolding MUST be within the Target Directory.
+- The Obsidian vault MUST be within the Target Directory.
+- Agents MUST NOT request, suggest, or accept filesystem access to any path
+  outside the Target Directory, even if the user explicitly asks.
+- The scaffold protocol (Operating Manual Section 18) MUST validate that the
+  project path is within the Target Directory before proceeding.
+
+This rule provides **structural enforcement** of the Secrets Are Sacred rule (4.2).
+Behavioral rules can be forgotten or bypassed; directory containment cannot.
+
+> **Derives from:** P7 (Scope Boundaries Are Sacred), P1 (Context Is Currency)

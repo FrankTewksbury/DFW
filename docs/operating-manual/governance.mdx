@@ -1,0 +1,40 @@
+---
+title: "Governance"
+description: "Constitution amendments and cross-agent compatibility"
+icon: "landmark"
+---
+
+## Constitution Amendment Process
+
+<Note>
+**PLACEHOLDER — To be expanded**
+</Note>
+
+Covers how DFW principles and rules get changed:
+- Who can propose an amendment (any agent or human)
+- What rationale is required
+- Where amendment history is tracked
+- How amendments propagate to fraternal twins (CLAUDE.md ↔ agent-constitution.mdc)
+- Version numbering convention
+
+---
+
+## Cross-Agent Compatibility
+
+<Note>
+**PLACEHOLDER — To be expanded**
+</Note>
+
+Covers how non-Claude agents consume DFW rules:
+
+| Agent | Method |
+|-------|--------|
+| **Claude Code** | Auto-reads CLAUDE.md natively |
+| **Claude Desktop** | Bootstrap via Custom Instructions (see CLAUDE.md Section 8) |
+| **Cursor** | Reads `.cursor/rules/*.mdc` (fraternal twin) |
+| **Gemini** | Requires system prompt injection — paste DFW section or provide file path |
+| **GPT / Codex** | Requires system prompt injection or project knowledge upload |
+| **Grok** | Requires system prompt injection |
+| **API-based agents** | Include CLAUDE.md content in system prompt |
+
+The file stays named CLAUDE.md for Claude Code auto-loading. For non-Claude agents, provide this file's content via whatever system prompt or project knowledge mechanism the agent supports.

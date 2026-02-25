@@ -1,0 +1,99 @@
+---
+title: "Troubleshooting"
+description: "Common issues and solutions for DFW setup"
+icon: "wrench"
+---
+
+Solutions for the most common issues encountered during DFW setup and daily use.
+
+## Claude Desktop Can't Access Files
+
+<AccordionGroup>
+<Accordion title="Symptoms">
+Claude says it cannot read or write files, or MCP tools are unavailable.
+</Accordion>
+<Accordion title="Solutions">
+- **Check paths** — Verify that paths in `claude_desktop_config.json` use double backslashes on Windows (`C:\\Projects\\DFW`, not `C:\Projects\DFW`).
+- **Restart Claude Desktop** — Fully quit from the system tray (right-click → Quit), not just close the window. MCP config is loaded only at startup.
+- **Verify Node.js** — Run `node --version` in a terminal. If Node.js isn't installed or isn't in your PATH, MCP servers using `npx` will fail silently.
+</Accordion>
+</AccordionGroup>
+
+## JSON Parse Error in Claude Desktop Config
+
+<AccordionGroup>
+<Accordion title="Symptoms">
+Claude Desktop fails to start or MCP servers don't appear after editing the config file.
+</Accordion>
+<Accordion title="Solutions">
+- **No trailing commas** — JSON does NOT allow trailing commas. Remove the comma after the last item in arrays and objects.
+- **Validate before saving** — Paste your config into [jsonlint.com](https://jsonlint.com) to catch syntax errors before restarting Claude Desktop.
+- **Check for curly quotes** — Some text editors replace straight quotes (`"`) with curly quotes (`"`). JSON requires straight quotes only.
+</Accordion>
+</AccordionGroup>
+
+## Obsidian Vault Unreachable from Claude
+
+<AccordionGroup>
+<Accordion title="Symptoms">
+Claude cannot search or read Obsidian vault notes, or the `obsidian-mcp-tools` server shows errors.
+</Accordion>
+<Accordion title="Solutions">
+- **Obsidian must be running** — The REST API only works while Obsidian is open with the vault loaded. It is not a background service.
+- **Local REST API plugin** — Must be both installed AND enabled in Settings → Community plugins.
+- **API key mismatch** — Verify the API key in Obsidian's Local REST API settings matches exactly what's in your `claude_desktop_config.json` under `OBSIDIAN_API_KEY`.
+- **Test the endpoint** — Open `http://localhost:27124` in a browser. You should see the REST API docs page. If not, the plugin isn't running correctly.
+</Accordion>
+</AccordionGroup>
+
+## subst Drive Paths Not Accessible
+
+<AccordionGroup>
+<Accordion title="Symptoms">
+MCP filesystem servers can't find files when using a `subst`-mapped drive letter (e.g., `X:\Projects\DFW`).
+</Accordion>
+<Accordion title="Solutions">
+- **MCP uses string matching** — MCP servers compare paths as strings, not resolved filesystem locations. A `subst` alias like `X:` is invisible to them.
+- **Always use real paths** — Replace drive aliases with the underlying real path in all MCP config. For example, use `C:\\DATA\\DFW` instead of `X:\\DFW`.
+- **Check all config locations** — This applies to `claude_desktop_config.json`, Cursor MCP settings, and any scripts that pass paths to MCP servers.
+</Accordion>
+</AccordionGroup>
+
+## Response Truncation or Claude Losing Context
+
+<AccordionGroup>
+<Accordion title="Symptoms">
+Claude's responses are cut off mid-sentence, it forgets instructions, or it stops following the constitution.
+</Accordion>
+<Accordion title="Solutions">
+- **Too many MCP servers** — Each MCP server injects ~10 tool definitions into Claude's context window. With many servers, this overhead crowds out your actual conversation.
+- **Consolidate servers** — Group related projects under one filesystem server instead of creating one per project.
+- **Target under 10** — Keep the total number of MCP servers below 10. The DFW default (two filesystem servers + Obsidian) is well within this limit.
+</Accordion>
+</AccordionGroup>
+
+## CardBoard Board Not Appearing in Obsidian
+
+<AccordionGroup>
+<Accordion title="Symptoms">
+After creating or updating `data.json`, the CardBoard board doesn't show up or shows stale data.
+</Accordion>
+<Accordion title="Solutions">
+- **Close Obsidian first** — Close Obsidian completely before writing to `data.json` via scripts or MCP. Obsidian caches file state and may not detect external changes.
+- **Use real paths** — Write via the real filesystem path (`C:\DATA\...`), not a `subst` alias (`X:\...`).
+- **Clear stale view entries** — If the board still doesn't appear, open `.obsidian/workspace.json` and remove stale CardBoard view entries, then restart Obsidian.
+</Accordion>
+</AccordionGroup>
+
+## Bootstrap Script Fails
+
+<AccordionGroup>
+<Accordion title="Symptoms">
+`Start-Here.ps1` or `Initialize-DFW.ps1` exits with errors during setup.
+</Accordion>
+<Accordion title="Solutions">
+- **PowerShell 7.0+ required** — Check your version with `$PSVersionTable.PSVersion`. Windows built-in PowerShell 5.1 is NOT sufficient. [Download PowerShell 7+](https://github.com/PowerShell/PowerShell/releases).
+- **Git must be in PATH** — Run `git --version` to verify. If missing, install from https://git-scm.com/downloads or run `winget install --id Git.Git`.
+- **Use the `-Force` flag** — If re-running the bootstrap after a partial setup, use `-Force` to overwrite existing files: `.\Start-Here.ps1 -Force`.
+</Accordion>
+</AccordionGroup>

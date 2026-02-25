@@ -1,0 +1,45 @@
+---
+title: "Version History"
+description: "DFW constitution and methodology changelog"
+icon: "clock-rotate-left"
+---
+
+A chronological record of every significant change to the DFW constitution and methodology. Each version represents a formal evolution of the system's principles, structure, or tooling.
+
+## Version Table
+
+| Version | Date | Change |
+|---------|------|--------|
+| 0.1.0 | 2026-02-19 | **Initial constitution** — single `CLAUDE.md` file containing all principles, rules, and operating procedures in one document. |
+| 0.4.0 | 2026-02-20 | **Constitution split** — extracted the operating manual and personal config into separate files for modularity and independent evolution. |
+| 0.6.0 | 2026-02-20 | **Progressive state protocol** — added resume-first session behavior and drive equivalence directive for `subst` drive mappings. |
+| 0.7.0 | 2026-02-20 | **Hub restructure + Model split.** Universal constitution extracted to `DFW-CONSTITUTION.md`. Model-specific files moved to `Tools/Model/`. Hub consolidated: `Vault/` (Obsidian) + `Tools/` (distribution). |
+| 0.8.0 | 2026-02-20 | **Project ID (PID) system.** Every project gets a unique `PID-XXXXX` identifier stored in `project.json`, vault stubs, and the global registry. |
+
+## Current Session Additions (Post-0.8.0)
+
+The following enhancements have been implemented since the 0.8.0 release:
+
+| Area | Change |
+|------|--------|
+| **Start-Here.ps1** | One-script bootstrap that creates the Target Directory, clones DFW, scaffolds the Obsidian vault and DFWP meta-project, generates `claude-desktop-config.json`, and prints next-step instructions. Auto-installs Git and Node.js via winget if missing. |
+| **Target Directory** | Formalized as the security boundary for all AI filesystem access. All MCP paths, project directories, and the Obsidian vault must be within this single root directory. Documented in Constitution Section 4.3. |
+| **Vault verification** | Session startup and project scaffold now verify Obsidian vault accessibility and project stub existence before proceeding. |
+| **MCP Architecture docs** | Two-server model documented with rationale (context window budget), the subdirectory anti-pattern, and config templates. |
+| **Config templates** | Added `claude-desktop-config-template.json` (with `<TARGET_DIR>` placeholders) and `claude-desktop-config-example.json` (annotated working example) to `Tools/templates/`. |
+| **Setup guide** | Comprehensive `SETUP-GUIDE.md` covering prerequisites, bootstrap, Obsidian plugin installation, API key setup, and Claude Desktop configuration. |
+| **Mintlify docs site** | Documentation site scaffolded at `docs/` with `docs.json` config, component pages, and reference material for the DFW methodology. |
+| **Drive mapping guidance** | Explicit documentation that `subst` drive aliases are not resolved by MCP servers — always use real filesystem paths in config. |
+| **Troubleshooting** | README expanded with common failure modes: JSON parse errors, Obsidian connectivity, response truncation, CardBoard sync, and bootstrap script issues. |
+
+## Versioning Policy
+
+DFW uses semantic versioning for the constitution:
+
+- **Major** (x.0.0) — Breaking changes to core principles or agent behavioral rules
+- **Minor** (0.x.0) — New rules, structural changes, or significant methodology additions
+- **Patch** (0.0.x) — Clarifications, typo fixes, and non-behavioral documentation updates
+
+<Note>
+The constitution is a living document. It evolves through the DFW amendment process. When methodology friction is found, tag it `#source/dfw-feedback #route/dfw` to enter the improvement pipeline.
+</Note>

@@ -1,0 +1,43 @@
+---
+title: "Context & Handoffs"
+description: "How to preserve context between sessions and transfer it between tools"
+icon: "arrow-right-arrow-left"
+---
+
+## Context Preservation — The MUST DOs
+
+Context is currency (P1). These are non-negotiable actions that preserve it:
+
+**`context/_ACTIVE_CONTEXT.md`** — The single most important file in any DFW project.
+- MUST be read at the start of every session.
+- MUST be updated at the end of every session with: what was done, what's next, what's blocked.
+- This is how sessions hand off to each other. Without it, the next session starts cold.
+
+**`plans/_TODO.md`** — The living task list.
+- MUST be read at session start to understand priorities.
+- MUST be updated when tasks are completed, added, or re-prioritized.
+- Every task MUST have `#status/` and `#priority/` tags (see Section 4).
+- Completed tasks MUST have `#status/done` and `@completed()` timestamps.
+- New tasks discovered mid-session get `#status/backlog #priority/<level> #source/session`.
+
+**`context/_DECISIONS_LOG.md`** — Why we chose what we chose.
+- MUST be appended when a significant architectural, design, or tooling decision is made.
+- Entries include: the decision, alternatives considered, rationale, and date.
+
+**Sequenced artifacts** — Everything else persisted with `NNN-type-slug.md` naming (see [Artifact Sequencing](/operating-manual/session-lifecycle#artifact-sequencing-convention)).
+
+---
+
+## Handoff Protocol
+
+Every tool transition and every session boundary requires a handoff. The handoff is how context survives tool boundaries and session gaps.
+
+A handoff MUST include:
+- **Context:** What was done, what state are we in, what decisions were made
+- **Intent:** What needs to happen next and why
+- **Constraints:** What must not change, what boundaries apply
+- **Acceptance:** How will we know the next phase succeeded
+- **Files:** Which files are involved, where they are
+- **Open Questions:** What's unresolved — tag each with `#source/ambiguity #route/dfw` if it represents a methodology gap
+
+Handoffs live in `prompts/handoffs/` with the naming pattern: `YYYY-MM-DD_<slug>-handoff.md`
