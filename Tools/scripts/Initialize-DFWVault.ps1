@@ -39,7 +39,7 @@ if (-not $VaultPath) {
 }
 
 if (-not $DFWPDir) {
-    $DFWPDir = Join-Path (Split-Path $DFWRoot -Parent) 'DFWP'
+    $DFWPDir = Join-Path $DFWRoot 'DFWP'
 }
 
 $TemplatePath = Join-Path $DFWRoot 'Tools\templates\vault'

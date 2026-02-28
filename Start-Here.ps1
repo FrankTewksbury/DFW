@@ -179,7 +179,7 @@ if (-not (Test-Path $driveRoot)) {
 
 $targetDir = "${DriveLetter}:\Projects"
 $dfwRoot = Join-Path $targetDir 'DFW'
-$dfwpPath = Join-Path $targetDir 'DFWP'
+$dfwpPath = Join-Path $dfwRoot 'DFWP'
 $vaultPath = Join-Path $dfwRoot 'Vault'
 
 Write-Host ''

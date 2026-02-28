@@ -39,7 +39,7 @@ if (-not $DFWRoot) {
 }
 
 if (-not $ProjectPath) {
-    $ProjectPath = Join-Path (Split-Path $DFWRoot -Parent) 'DFWP'
+    $ProjectPath = Join-Path $DFWRoot 'DFWP'
 }
 
 $TemplatePath = Join-Path $DFWRoot 'Tools\templates\dfwp'
