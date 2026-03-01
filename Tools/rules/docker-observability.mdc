@@ -1,0 +1,192 @@
+---
+name: docker-observability
+description: >
+  Reusable global Docker near-real-time monitoring and logging standards.
+  Applies to all DFW projects running containerised services.
+  Project-level adoptions override individual fields in their own log-file-rule extension.
+alwaysApply: false
+version: "1.0.0"
+created: "2026-03-01"
+source: raris-project
+---
+
+# Docker Observability Rule
+# Near-Real-Time Monitoring and Structured Logging Standards for Containerised Services
+
+---
+
+## 1. Scope
+
+This rule applies to every DFW project that runs one or more services via Docker Compose
+or any compatible container runtime. It defines:
+
+- Standard operator commands for live observation
+- Required structured log fields for LLM pipelines and background workers
+- Mandatory stdout summary and heartbeat line formats
+- Container health check standards
+
+Projects adopting this rule MUST extend or override it in their project-level `log-file-rule.mdc`
+rather than duplicating content.
+
+---
+
+## 2. Standard Operator Command Set
+
+All project contributors and AI agents MUST use these commands during active runs.
+
+```bash
+# Container health status snapshot
+docker compose ps
+
+# Live log tail — preferred for active runs
+docker compose logs -f --tail=200 <service>
+
+# All services simultaneously
+docker compose logs -f --tail=100
+
+# Raw Docker lifecycle events
+docker events --filter container=<project>-<service>-1
+
+# One-shot status check (safe for scripts)
+docker compose ps && docker compose logs --tail=50 <service>
+
+# Restart a single service without rebuilding
+docker compose restart <service>
+
+# Rebuild and restart (after code changes)
+docker compose up --build -d <service>
+```
+
+---
+
+## 3. Required Structured Log Fields
+
+Every pipeline stage transition, LLM call, retry, and batch event MUST emit a structured
+log entry to stdout/stderr that includes the following fields.
+Docker routes these to `docker compose logs`.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `runId` | str | Yes | Unique ID for the active run/job |
+| `stage` | str | Yes | Pipeline stage or worker name |
+| `provider` | str | If LLM | LLM provider (`gemini`, `openai`, `anthropic`) |
+| `model` | str | If LLM | Specific model ID used |
+| `errorCode` | int \| None | On error | HTTP status code from provider API |
+| `retryAttempt` | int | On retry | 1-based retry index |
+| `fallbackModel` | str \| None | On downgrade | Model selected for next attempt |
+| `batchIndex` | int \| None | Batch ops | Batch number within a batched stage |
+| `skippedBatches` | int \| None | Batch ops | Batches skipped due to exhausted retries |
+
+Projects MAY add additional fields (e.g. `manifestId`, `taskId`, `userId`) as needed.
+
+---
+
+## 4. Mandatory stdout Summary Line Format
+
+Each stage transition MUST emit a summary line to stdout:
+
+```
+[STAGE] <stage_name> status=<running|complete|skipped|error> [field=value ...]
+```
+
+### Examples
+
+```
+[STAGE] source_hunter status=complete model=gemini-3-pro-preview items=47 skipped_batches=0
+[STAGE] program_enumerator status=complete model=gemini-3-flash-preview items=31 skipped_batches=1
+[STAGE] worker status=error stage=indexer errorCode=503 retryAttempt=4
+```
+
+---
+
+## 5. Heartbeat Lines (Long-Running Operations)
+
+Any operation that may run longer than 30 seconds MUST emit a periodic heartbeat
+line to stdout at intervals no greater than 30 seconds:
+
+```
+[HEARTBEAT] stage=<stage_name> batch=<N>/<total> items_so_far=<N> elapsed_s=<N>
+```
+
+This prevents `docker compose logs -f` from appearing stalled and confirms the container is alive.
+
+---
+
+## 6. Container Health Check Standards
+
+All services that expose an HTTP port MUST define a `healthcheck` in `docker-compose.yml`:
+
+```yaml
+healthcheck:
+  test: ["CMD", "curl", "-f", "http://localhost:<port>/health"]
+  interval: 30s
+  timeout: 10s
+  retries: 3
+  start_period: 40s
+```
+
+Background workers without an HTTP port SHOULD use a file-sentinel health check:
+
+```yaml
+healthcheck:
+  test: ["CMD", "test", "-f", "/tmp/.worker-alive"]
+  interval: 30s
+  timeout: 5s
+  retries: 3
+```
+
+---
+
+## 7. LLM Retry and Fallback Telemetry Requirements
+
+Every retry attempt and model fallback MUST emit a log line at `WARNING` or `INFO` level
+visible via `docker compose logs`.
+
+### Retry WARNING format
+```
+[gemini] <stage> retryable attempt=<N>/<MAX> code=<HTTP_CODE> model=<model> fallback=<next_model|same> delay=<N>s
+```
+
+### Fallback INFO format (on recovery)
+```
+[gemini] <stage> recovered attempt=<N> model=<model>
+```
+
+### Fail-fast ERROR format
+```
+[gemini] <stage> fail-fast code=<HTTP_CODE> model=<model> error=<message>
+```
+
+---
+
+## 8. Project Adoption Checklist
+
+When adopting this rule in a new project:
+
+- [ ] Add `docker-observability.mdc` reference to project `.cursor/rules/`
+- [ ] Extend `log-file-rule.mdc` with project-specific fields (e.g. `manifestId`)
+- [ ] Verify `docker compose logs -f --tail=200 backend` shows stage transition lines
+- [ ] Verify retry and fallback events appear in live logs during LLM calls
+- [ ] Verify `[HEARTBEAT]` lines appear during long batch operations
+- [ ] Verify all containers have `healthcheck` defined in `docker-compose.yml`
+- [ ] Confirm `docker compose ps` shows `healthy` after startup
+
+---
+
+## 9. Phase-2 Enhancements (Optional)
+
+For projects requiring richer observability beyond stdout tailing:
+
+- **Loki + Grafana + Promtail** — centralised log ingestion, labelling, and live dashboards
+- **Vector** — structured log routing with field extraction and metric derivation
+- **Prometheus + alerting** — container resource metrics with threshold alerts
+
+These are Phase-2 additions and NOT required for baseline compliance.
+
+---
+
+## Version History
+
+| Version | Date | Change |
+|---------|------|--------|
+| 1.0.0 | 2026-03-01 | Initial global rule — extracted from RARIS project Track A implementation |
