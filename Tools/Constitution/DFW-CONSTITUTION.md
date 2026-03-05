@@ -135,6 +135,19 @@ These nine principles are the foundation of DFW. Every rule, convention, and pro
 
 > **Derives from:** P2 (Humans Steer), P3 (Ambiguity Stops Work), P4 (Explicit Over Implicit)
 
+### RULE: Resolve Write Scope Before Filesystem Operations
+
+- Before creating any file or directory, agents MUST verify the write target belongs to the **current project** by checking the Project Identity section in `CLAUDE.md`.
+- The following are **reserved DFW namespace tokens** and MUST NOT be materialized as new directories in product repos: `DFW/`, `DFWP/`, `DFWExtension/`, `Tools/`, `Vault/`, `Constitution/`, `Manuals/`.
+- If an instruction references a DFW namespace path (e.g., "update DFWP/plans/..."), the agent MUST resolve whether this is:
+  1. A **logical reference** to a file in another repo (read-only context), or
+  2. A **physical write** intended for the current project's own directory.
+  If ambiguous, STOP and ask (P3).
+- Agents MUST NOT create new top-level directories in any project without explicit user confirmation. DFW standard directories (`docs/`, `plans/`, `prompts/`, `context/`, `research/`, `scripts/`, `.cursor/`, `.dfw/`, `.claude/`) are pre-approved; anything else requires a yes/no.
+- At the start of any build/implementation session, agents SHOULD state a brief **Write Scope Contract**: which repo they are targeting and which directories they will write to.
+
+> **Derives from:** P3 (Ambiguity Stops Work), P7 (Scope Boundaries Are Sacred)
+
 ### RULE: Verify Against Authoritative Sources
 
 - When implementing against any third-party API, SDK, framework, or external service, agents MUST consult current authoritative documentation rather than relying on training data. Training data may contain deprecated patterns, removed APIs, renamed parameters, outdated model identifiers, or discontinued services.
@@ -370,6 +383,7 @@ After loading context and assigning persona, display:
 | 0.7.0 | 2026-02-20 | **Hub restructure + Model split.** Universal constitution extracted to `DFW-CONSTITUTION.md`. Model-specific files in `Tools/Model/`. Hub consolidated: `X:\DFW\Vault` (Obsidian) + `X:\DFW\Tools` (distribution). |
 | 0.8.0 | 2026-02-20 | **Project ID (PID) system.** Every project gets a unique `PID-XXXXX` identifier. PID in project.json, vault stubs, and global registry. |
 | 0.8.1 | 2026-03-05 | **Verify Against Authoritative Sources** rule added to Section 3. Agents must consult current docs over training data. |
+| 0.8.2 | 2026-03-05 | **Resolve Write Scope** rule added. Namespace collision prevention — reserved DFW tokens, write scope contracts, top-level directory guard. |
 
 ---
 

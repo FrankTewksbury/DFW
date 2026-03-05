@@ -1,6 +1,6 @@
 ---
 name: agent-constitution
-description: Agent constitutional guardrails — enforces DFW-CONSTITUTION.md + CLAUDE.md as canonical operating guides, inlines critical safety rules, and mandates DFW compliance. Synced with v0.8.2.
+description: Agent constitutional guardrails — enforces DFW-CONSTITUTION.md + CLAUDE.md as canonical operating guides, inlines critical safety rules, and mandates DFW compliance. Synced with v0.8.3.
 alwaysApply: true
 ---
 
@@ -52,6 +52,14 @@ Failure to read these violates P1.
 - MAY only delete files the agent itself created in the **current session**.
 - Even with explicit user instruction to delete a pre-existing file, MUST confirm and warn before proceeding.
 - Structural files (`_TODO.md`, `_WISHLIST.md`, `_ROADMAP.md`, `_ACTIVE_CONTEXT.md`, `_DECISIONS_LOG.md`, `README.md`, `CHANGELOG.md`, `ARCHITECTURE.md`, `PROJECT_OVERVIEW.md`) MUST NEVER be deleted.
+
+## RULE: Resolve Write Scope Before Filesystem Operations
+
+- Before creating any file or directory, MUST verify the write target belongs to the **current project** via the Project Identity section in `CLAUDE.md`.
+- Reserved DFW namespace tokens (`DFW/`, `DFWP/`, `DFWExtension/`, `Tools/`, `Vault/`, `Constitution/`, `Manuals/`) MUST NOT be materialized as new directories in product repos.
+- If an instruction references a DFW namespace path, MUST resolve whether it is a logical reference (read-only) or a physical write to the current project. If ambiguous, STOP and ask (P3).
+- MUST NOT create new top-level directories without explicit user confirmation. DFW standard directories (`docs/`, `plans/`, `prompts/`, `context/`, `research/`, `scripts/`, `.cursor/`, `.dfw/`, `.claude/`) are pre-approved.
+- At build/implementation session start, SHOULD state a brief **Write Scope Contract**: target repo and allowed write directories.
 
 ## RULE: Verify Against Authoritative Sources
 
