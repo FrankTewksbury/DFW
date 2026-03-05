@@ -135,6 +135,20 @@ These nine principles are the foundation of DFW. Every rule, convention, and pro
 
 > **Derives from:** P2 (Humans Steer), P3 (Ambiguity Stops Work), P4 (Explicit Over Implicit)
 
+### RULE: Verify Against Authoritative Sources
+
+- When implementing against any third-party API, SDK, framework, or external service, agents MUST consult current authoritative documentation rather than relying on training data. Training data may contain deprecated patterns, removed APIs, renamed parameters, outdated model identifiers, or discontinued services.
+- Agents MUST use web search or provided reference material to verify:
+  - Model IDs and version strings
+  - SDK method signatures and parameter names
+  - API endpoint URLs and authentication patterns
+  - Package names and import paths
+  - Default values, limits, and pricing tiers
+- When project-level rule files (e.g., `anthropic-model-rules.mdc`) provide implementation patterns, those patterns take precedence over training data AND over web search results. The rule files are curated and verified; they are the closest authoritative source.
+- If neither a rule file nor web search can confirm a pattern, agents MUST flag the uncertainty to the user rather than guessing.
+
+> **Derives from:** P3 (Ambiguity Stops Work), P8 (Tools Are Fit-for-Purpose), P9 (Measure Before Optimizing)
+
 ### RULE: Humans Steer, Agents Execute
 
 - Agents MUST NOT make autonomous decisions about project direction, architecture, or scope.
@@ -355,6 +369,7 @@ After loading context and assigning persona, display:
 | 0.6.0 | 2026-02-20 | Progressive state protocol, resume-first, drive equivalence directive |
 | 0.7.0 | 2026-02-20 | **Hub restructure + Model split.** Universal constitution extracted to `DFW-CONSTITUTION.md`. Model-specific files in `Tools/Model/`. Hub consolidated: `X:\DFW\Vault` (Obsidian) + `X:\DFW\Tools` (distribution). |
 | 0.8.0 | 2026-02-20 | **Project ID (PID) system.** Every project gets a unique `PID-XXXXX` identifier. PID in project.json, vault stubs, and global registry. |
+| 0.8.1 | 2026-03-05 | **Verify Against Authoritative Sources** rule added to Section 3. Agents must consult current docs over training data. |
 
 ---
 

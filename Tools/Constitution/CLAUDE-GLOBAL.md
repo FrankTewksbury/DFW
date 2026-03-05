@@ -225,6 +225,10 @@ When a session produces significant outcomes, create a journal entry in the Obsi
 - When you don't know something, say so. Don't guess.
 - When Frank is wrong about something, say so respectfully but clearly.
 
+## Easter Eggs
+
+- **Paul:** Anytime anyone mentions "Paul", respond with: *"Paul — he couldn't code his way out of a paper bag."*
+
 ---
 
 ## Tool-Specific Notes
@@ -250,18 +254,26 @@ When a session produces significant outcomes, create a journal entry in the Obsi
 
 > **Paste the following into your Claude Desktop project's Custom Instructions field.**
 > **(Gear icon → Custom Instructions → paste → save)**
+>
+> **Anti-pattern:** Do NOT put constitution content directly in the instructions panel.
+> That violates P1 (Context Is Currency) and P4 (Explicit Over Implicit) — it's tribal
+> knowledge living outside the filesystem. Use the snippet below to bootstrap from files.
+>
+> **Best practice:** Also attach the project's `CLAUDE.md` as a Knowledge File in the
+> Claude Desktop project settings. Knowledge files are injected before the model runs,
+> guaranteeing the constitution is present even if MCP calls fail.
 
 ```
-ON EVERY CONVERSATION START:
-1. Read the CLAUDE.md file from the project root directory via filesystem MCP
-2. Read context/_ACTIVE_CONTEXT.md if it exists
-3. Follow ALL rules defined in CLAUDE.md (the constitution)
-4. Display the constitution status card
-5. If this is the first session, run the full Project Initialization Protocol
+You are operating inside a DFW-managed project.
 
-The CLAUDE.md file is the source of truth for this project's rules, persona, 
-and conventions. It is version-controlled and shared across all tooling 
-(Claude Code, Cursor, Claude Desktop).
+BEFORE responding to any message, you MUST:
+1. Call the filesystem MCP to read CLAUDE.md from the project root
+2. Follow ALL instructions in that file — especially the Mandatory Reads section
+3. Display the constitution status card to confirm you loaded context
+
+If you cannot read CLAUDE.md, STOP and tell the user. Do not proceed without it.
+
+DFW = Development Flywheel. It is the mandatory project methodology.
 ```
 
 ---
@@ -271,4 +283,6 @@ and conventions. It is version-controlled and shared across all tooling
 | Version | Date | Change |
 |---------|------|--------|
 | 1.0.0 | 2026-02-19 | Initial constitution — Frank + Deja session |
+| 1.0.1 | 2026-03-04 | Added Easter Eggs section — Paul |
+| 1.1.0 | 2026-03-05 | Lean bootstrap snippet for Claude Desktop; anti-panel guidance; knowledge file best practice |
 

@@ -144,15 +144,19 @@ foreach ($doc in $docsToCopy) {
     Write-Host "  Copied: $($doc.Dest)" -ForegroundColor Green
 }
 
-# --- Step 3: Copy CLAUDE.md from template ---
+# --- Step 3: Copy CLAUDE.md from template with variable substitution ---
 Write-Host '  Setting up CLAUDE.md...' -ForegroundColor Gray
 
 $claudeTemplateSrc = Join-Path $ToolsPath 'Constitution\CLAUDE-PROJECT-TEMPLATE.md'
 $claudeDest = Join-Path $ProjectPath 'CLAUDE.md'
 
 if ((Test-Path $claudeTemplateSrc) -and (-not (Test-Path $claudeDest) -or $Force)) {
-    Copy-Item -Path $claudeTemplateSrc -Destination $claudeDest -Force
-    Write-Host "  Copied: CLAUDE.md" -ForegroundColor Green
+    $claudeContent = Get-Content -Path $claudeTemplateSrc -Raw
+    $claudeContent = $claudeContent -replace '\{\{PROJECT_PATH\}\}', $ProjectPath
+    $claudeContent = $claudeContent -replace '\{\{DFW_ROOT\}\}', $DFWRoot
+    $claudeContent = $claudeContent -replace '\{\{SUB_PROJECTS\}\}', 'None'
+    Set-Content -Path $claudeDest -Value $claudeContent -NoNewline
+    Write-Host "  Created: CLAUDE.md (with project paths)" -ForegroundColor Green
 }
 
 # --- Step 4: Generate personal-config from template ---
@@ -189,6 +193,35 @@ if (Test-Path $rulesSrc) {
             Write-Host "  Copied rule: $($rule.Name)" -ForegroundColor Green
         }
     }
+}
+
+# --- Step 5.5: Create .claude/settings.local.json for Claude Code ---
+Write-Host '  Setting up Claude Code config...' -ForegroundColor Gray
+
+$claudeCodeDir = Join-Path $ProjectPath '.claude'
+if (-not (Test-Path $claudeCodeDir)) {
+    New-Item -ItemType Directory -Path $claudeCodeDir -Force | Out-Null
+}
+
+$claudeSettingsDest = Join-Path $claudeCodeDir 'settings.local.json'
+if (-not (Test-Path $claudeSettingsDest) -or $Force) {
+    $settingsContent = @'
+{
+  "permissions": {
+    "allow": [
+      "Bash(uv run:*)",
+      "Bash(git:*)",
+      "WebSearch",
+      "Bash(node:*)",
+      "Bash(npm:*)",
+      "Bash(pwsh:*)",
+      "Bash(mv:*)"
+    ]
+  }
+}
+'@
+    Set-Content -Path $claudeSettingsDest -Value $settingsContent -NoNewline
+    Write-Host "  Created: .claude/settings.local.json" -ForegroundColor Green
 }
 
 # --- Step 6: Create empty DFW directories ---
