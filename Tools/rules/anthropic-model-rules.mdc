@@ -10,13 +10,24 @@ alwaysApply: false
 
 ## 1. Model Selection & Lifecycle
 
-| Model ID | Tier | Use Case | Context | Max Output | Pricing (MTok) |
-|----------|------|----------|---------|------------|----------------|
-| `claude-opus-4-6` | Most Capable | **DEFAULT** - Complex agents, deep reasoning | 200K (1M beta) | 128K | $5 / $25 |
-| `claude-sonnet-4-6` | Balanced | Speed + intelligence, general tasks | 200K (1M beta) | 64K | $3 / $15 |
-| `claude-haiku-4-5` | Fastest | High-speed classification, extraction | 200K | 64K | $1 / $5 |
+| Model ID | Tier | Use Case | Context | Max Output | Pricing (MTok) | Cache Hit (MTok) |
+|----------|------|----------|---------|------------|----------------|------------------|
+| `claude-opus-4-6` | Most Capable | **DEFAULT** - Complex agents, deep reasoning | 200K (1M beta) | 128K | $5 / $25 | $0.50 |
+| `claude-sonnet-4-6` | Balanced | Speed + intelligence, general tasks | 200K (1M beta) | 64K | $3 / $15 | $0.30 |
+| `claude-haiku-4-5` | Fastest | High-speed classification, extraction | 200K | 64K | $1 / $5 | $0.10 |
 
 All models support: text input, image input, vision, extended thinking, multilingual.
+
+Available via: Anthropic API, AWS Bedrock, Google Vertex AI, Microsoft Foundry.
+
+### Prompt Caching Pricing
+
+| Cache Operation | Cost |
+|----------------|------|
+| Cache write (5-minute TTL) | 1.25x standard input rate |
+| Cache write (1-hour TTL) | 2x standard input rate |
+| Cache hit / refresh | See Cache Hit column above |
+| Batch API (async, 24h window) | 50% off standard rates |
 
 ### Task-Based Selection
 
@@ -29,6 +40,7 @@ All models support: text input, image input, vision, extended thinking, multilin
 ### Deprecated Models (DO NOT USE)
 
 * `claude-3-opus` / `claude-3-sonnet` / `claude-3-haiku`
+* `claude-3-haiku-20240307` — deprecated Feb 2026, **retires April 19, 2026**
 * `claude-3.5-sonnet` / `claude-3.5-haiku`
 * Any model without the `claude-{tier}-{major}-{minor}` naming pattern
 

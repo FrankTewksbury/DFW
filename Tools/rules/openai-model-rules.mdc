@@ -1,8 +1,8 @@
 ---
-description: Global Implementation Standards for GPT-5.2 Series, Web Search, and Resilient RAG
+description: Global Implementation Standards for GPT-5.4, O-Series, and GPT-4.1 — Web Search, Deep Research, and Resilient RAG
 alwaysApply: false
 ---
-# OpenAI GPT-5.2 Global Implementation Rules
+# OpenAI GPT-5.4 / O-Series / GPT-4.1 Global Implementation Rules
 
 > **MANDATORY:** Do not rely on pre-2025 training data regarding model IDs or SDK patterns. Always use the implementation patterns defined in this document for all Python-based OpenAI integrations.
 
@@ -10,37 +10,68 @@ alwaysApply: false
 
 ## 1. Model Selection & Lifecycle
 
-| Model ID | Type | Use Case | Context Window |
-|----------|------|----------|----------------|
-| `gpt-5.2-pro` | Chat | **DEFAULT** - Most advanced, critical accuracy | 200K tokens |
-| `gpt-5.2` | Thinking | Complex reasoning, coding, summarization | 200K tokens |
-| `gpt-5.2-chat-latest` | Instant | Fast everyday tasks, writing | 200K tokens |
-| `gpt-5-mini` | Lightweight | Simple queries, cost-optimized | 200K tokens |
+### Flagship Models (Current Generation)
 
-### Reasoning Modes (GPT-5.2)
+| Model ID | Tier | Use Case | Context | Max Output | Pricing (MTok) |
+|----------|------|----------|---------|------------|----------------|
+| `gpt-5.4` | Flagship | **DEFAULT** — general purpose, coding, reasoning | 1.05M | 128K | $2.50 / $15 |
+| `gpt-5.4-pro` | Premium | Maximum accuracy for demanding tasks | 1.05M | 128K | $30 / $180 |
 
-GPT-5.2 supports configurable reasoning levels:
+### Reasoning Models (O-Series)
+
+| Model ID | Tier | Use Case | Context | Pricing (MTok) |
+|----------|------|----------|---------|----------------|
+| `o3-pro` | Strongest Reasoning | Complex analysis, math, science | 200K | $20 / $80 |
+| `o3` | Reasoning | Multi-step reasoning, coding | 200K | $2 / $8 |
+| `o4-mini` | Budget Reasoning | Fast reasoning, best value | 200K | $1.10 / $4.40 |
+| `o3-deep-research` | Deep Research | Agent-driven, hundreds of sources | 200K | See pricing page |
+| `o4-mini-deep-research` | Budget Deep Research | Cost-effective agent research | 200K | See pricing page |
+
+### Previous Generation (Still Available)
+
+| Model ID | Use Case | Context | Pricing (MTok) |
+|----------|----------|---------|----------------|
+| `gpt-4.1` | Low-latency, fine-tuning | 1M | $2 / $8 |
+| `gpt-4.1-mini` | Budget tasks, fine-tuning | 1M | $0.40 / $1.60 |
+| `gpt-4.1-nano` | Simplest tasks, cheapest option | 1M | $0.10 / $0.40 |
+
+### Reasoning Modes (GPT-5.4 and O-Series)
 
 | Level | Behavior | Use Case |
 |-------|----------|----------|
 | `none` | No internal reasoning (default, lowest latency) | Quick lookups, classification |
 | `low` | Light reasoning chain | Moderate complexity |
-| `high` | Deep reasoning chain | Complex multi-step analysis, deep research |
+| `high` | Deep reasoning chain | Complex multi-step analysis |
 
 ### Task-Based Selection
 
 | Task Type | Model | Notes |
 |-----------|-------|-------|
-| Default / General | `gpt-5.2-pro` | Best accuracy and precision |
-| Simple queries | `gpt-5.2-chat-latest` | Fast, cost-effective |
-| Complex reasoning | `gpt-5.2` | Multi-step thinking |
-| Lightweight tasks | `gpt-5-mini` | Budget-friendly |
+| Default / General | `gpt-5.4` | Best all-round, replaces gpt-5.2-pro |
+| Premium critical accuracy | `gpt-5.4-pro` | 12x cost — justify before using |
+| Complex multi-step reasoning | `o3` | Dedicated reasoning model |
+| Budget reasoning | `o4-mini` | Best value, replaces o3-mini |
+| Strongest reasoning | `o3-pro` | Maximum capability, highest cost |
+| Deep research (agent) | `o3-deep-research` | Hundreds of sources, runs minutes |
+| Low-latency / fine-tuning | `gpt-4.1` | Previous gen, excellent speed |
+| Budget tasks | `gpt-4.1-mini` | Fast and affordable |
+| Simple classification | `gpt-4.1-nano` | Cheapest option |
+
+### Pricing Notes
+
+| Optimization | Savings |
+|-------------|---------|
+| Prompt caching (repeated context) | 90% off cached input |
+| Batch API (async, 24h window) | 50% off all rates |
+| GPT-5.4-pro long context (>272K tokens) | Input doubles to $60/MTok, output to $270/MTok |
+| Cached input (gpt-5.4) | $0.25/MTok (10% of standard) |
 
 ### Deprecated Models (DO NOT USE)
 
-* `gpt-4` / `gpt-4o` -> Use `gpt-5.2-pro`
-* `gpt-4o-mini` -> Use `gpt-5.2-chat-latest`
-* `gpt-3.5-turbo` -> Use `gpt-5.2-chat-latest`
+* `gpt-5.2-pro`, `gpt-5.2`, `gpt-5.2-chat-latest`, `gpt-5-mini` — **retiring June 5, 2026** → use `gpt-5.4`
+* `gpt-4` / `gpt-4o` / `gpt-4o-mini` — already retired → use `gpt-4.1` / `gpt-4.1-mini`
+* `gpt-3.5-turbo` — already retired → use `gpt-4.1-nano`
+* `o3-mini` — superseded by `o4-mini`
 
 ---
 
@@ -56,12 +87,12 @@ client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 async_client = AsyncOpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 ```
 
-### 2.2 Chat Completions Pattern
+### 2.2 Chat Completions Pattern (GPT-5.4)
 
 ```python
 def call_gpt(
     prompt: str,
-    model: str = "gpt-5.2-pro",
+    model: str = "gpt-5.4",
     system_prompt: str = None,
     max_tokens: int = 4096,
     temperature: float = 0.7
@@ -80,17 +111,27 @@ def call_gpt(
     return response.choices[0].message.content
 ```
 
+### 2.3 Reasoning Mode (GPT-5.4 / O-Series)
+
+```python
+response = client.chat.completions.create(
+    model="gpt-5.4",
+    messages=[{"role": "user", "content": "Analyze this complex problem..."}],
+    reasoning_effort="high"  # "none" | "low" | "high"
+)
+```
+
 ---
 
 ## 3. Web Search (Responses API)
 
-The Responses API provides built-in web search as a tool. The model decides when to search based on the input prompt. Web search is **not** available via Chat Completions — use the Responses API.
+The Responses API provides built-in web search as a tool. Web search is **not** available via Chat Completions — use the Responses API.
 
 ### 3.1 Basic Web Search
 
 ```python
 response = client.responses.create(
-    model="gpt-5.2",
+    model="gpt-5.4",
     input="Find current down payment assistance programs in Texas",
     tools=[{"type": "web_search"}]
 )
@@ -99,8 +140,6 @@ print(response.output_text)
 ```
 
 ### 3.2 Accessing Citations
-
-Responses include inline URL citations with title and source location.
 
 ```python
 for item in response.output:
@@ -112,11 +151,9 @@ for item in response.output:
 
 ### 3.3 Domain Filtering
 
-Limit search results to specific domains (up to 100 URLs). Omit the `https://` prefix.
-
 ```python
 response = client.responses.create(
-    model="gpt-5.2",
+    model="gpt-5.4",
     input="Find DPA programs",
     tools=[{
         "type": "web_search",
@@ -129,7 +166,7 @@ response = client.responses.create(
 
 ```python
 response = client.responses.create(
-    model="gpt-5.2",
+    model="gpt-5.4",
     input="Local housing assistance programs",
     tools=[{
         "type": "web_search",
@@ -147,9 +184,9 @@ response = client.responses.create(
 
 | Type | Model | Behavior |
 |------|-------|----------|
-| Deep Research | `o3-deep-research`, `o4-mini-deep-research`, `gpt-5` (reasoning=high) | Agent-driven, hundreds of sources, runs for minutes |
-| Agentic Search | `gpt-5.2` (reasoning=high) | Model manages search loop, decides when to stop |
-| Non-Reasoning Search | `gpt-5.2` (reasoning=none) | Fast single-pass lookup, top results only |
+| Standard Search | `gpt-5.4` (reasoning=none) | Fast single-pass lookup |
+| Agentic Search | `gpt-5.4` (reasoning=high) | Model manages search loop |
+| Deep Research | `o3-deep-research`, `o4-mini-deep-research` | Agent-driven, hundreds of sources, minutes-long |
 
 ### 3.6 When to Use Web Search
 
@@ -163,18 +200,64 @@ response = client.responses.create(
 ### 3.7 Limitations
 
 * Web search limits context window to 128K tokens (even on models with larger windows)
-* Not supported with `gpt-5` at `minimal` reasoning or `gpt-4.1-nano`
 * Domain filtering is Responses API only
 
 ---
 
-## 4. Structured Outputs & JSON Mode
+## 4. Deep Research (O-Series)
 
-### 4.1 JSON Mode (Chat Completions)
+Deep research models run multi-step agentic workflows that can take **tens of minutes**. Use the Responses API with background mode.
+
+### 4.1 Deep Research Request
+
+```python
+response = client.responses.create(
+    model="o3-deep-research",
+    input="Produce a comprehensive analysis of CDFI grant programs in the Southeast US",
+    tools=[
+        {"type": "web_search"},
+        {"type": "file_search", "vector_store_ids": ["vs_abc123"]}  # optional
+    ],
+    background=True  # required for long-running tasks
+)
+
+# Poll for completion or use webhooks
+job_id = response.id
+```
+
+### 4.2 Polling for Completion
+
+```python
+import time
+
+def wait_for_research(job_id: str, poll_interval: int = 30):
+    while True:
+        result = client.responses.retrieve(job_id)
+        if result.status == "completed":
+            return result.output_text
+        if result.status == "failed":
+            raise RuntimeError(f"Deep research failed: {result.error}")
+        time.sleep(poll_interval)
+```
+
+### 4.3 When to Use Deep Research
+
+| Use Case | Model | Notes |
+|----------|-------|-------|
+| Market analysis | `o3-deep-research` | Best quality |
+| Legal / scientific research | `o3-deep-research` | Citation-rich reports |
+| Cost-sensitive research | `o4-mini-deep-research` | Budget alternative |
+| Internal data synthesis | Either | Add `file_search` tool with vector store |
+
+---
+
+## 5. Structured Outputs & JSON Mode
+
+### 5.1 JSON Mode (Chat Completions)
 
 ```python
 response = client.chat.completions.create(
-    model="gpt-5.2-pro",
+    model="gpt-5.4",
     messages=[
         {"role": "system", "content": "Extract entities and return as JSON."},
         {"role": "user", "content": document_text}
@@ -185,9 +268,9 @@ response = client.chat.completions.create(
 
 ---
 
-## 5. Error Handling & Resilience
+## 6. Error Handling & Resilience
 
-### 5.1 Exception Types
+### 6.1 Exception Types
 
 ```python
 from openai import (
@@ -200,7 +283,7 @@ from openai import (
 )
 ```
 
-### 5.2 Retry Policy
+### 6.2 Retry Policy
 
 | Exception | Action |
 |-----------|--------|
@@ -210,7 +293,7 @@ from openai import (
 | `AuthenticationError` (401) | **Fail fast** |
 | `BadRequestError` (400) | **Fail fast** |
 
-### 5.3 Resilient Pattern
+### 6.3 Resilient Pattern
 
 ```python
 import time
@@ -236,13 +319,13 @@ def call_with_retry(func, max_retries: int = 3):
 
 ---
 
-## 6. Quick Reference
+## 7. Quick Reference
 
 ### Environment Variables
 
 ```
 OPENAI_API_KEY=your_api_key_here
-OPENAI_MODEL=gpt-5.2-pro
+OPENAI_MODEL=gpt-5.4
 ```
 
 ### Minimal Working Example
@@ -254,7 +337,7 @@ from openai import OpenAI
 client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
 
 response = client.responses.create(
-    model="gpt-5.2-pro",
+    model="gpt-5.4",
     input="Analyze this document...",
     tools=[{"type": "web_search"}]
 )
