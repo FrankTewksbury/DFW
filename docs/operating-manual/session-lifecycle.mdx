@@ -36,6 +36,31 @@ Every working session follows this pattern. All agents MUST follow this regardle
 16. If tool transition needed: write a handoff to `prompts/handoffs/`
 17. If a state file exists and all steps are complete, archive it (see [State Protocol](/operating-manual/state-protocol))
 
+### Session Git Action
+
+At session close, every session on a git branch ends with one of four states.
+Before you finish CLOSE, classify the session using one of these states and take the matching git action:
+
+| State | Meaning | Git Action |
+|-------|---------|------------|
+| **COMPLETE** | Acceptance criteria met | Squash `wip` commits and open a PR |
+| **CONTINUABLE** | Good progress, scope unchanged | Push branch as-is and write a handoff |
+| **SCOPE CHANGED** | Issue larger than one branch | Push branch, create child issues, and write a handoff |
+| **ABANDONED** | Issue dropped | Write a closing commit, push, and close the issue |
+
+> For full git mechanics per state, see [Session-End Workflow](/git-collaboration/session-end-workflow).
+
+### Context Lifecycle
+
+Every session close is a rotation through four context management steps:
+
+- **Capture** — `wip` commits, journal entry, handoff doc
+- **Organize** — branch naming, `prompts/handoffs/`, sequenced artifact names
+- **Feed** — updated `CLAUDE.md`, refreshed active context at the next session open
+- **Prune** — archive stale handoffs, squash `wip` commits before PR
+
+> For the full git-specific mapping of each step, see [Session-End Workflow](/git-collaboration/session-end-workflow).
+
 ### FLYWHEEL FEEDBACK
 
 18. Did we hit methodology friction? → Tag `#source/dfw-feedback #route/dfw`
@@ -87,3 +112,30 @@ description: One-line summary
 tags: [#status/active, #priority/important]
 ---
 ```
+
+---
+
+## Multi-Project Parallel Execution
+
+When working across multiple active projects in the same session, the P7 safeguard
+applies: **every project switch requires a handoff**.
+
+### Rules
+
+- Before switching projects mid-session, write a handoff for the project you are leaving.
+- Each project gets its own session START read after every switch. Re-read the target project's `CLAUDE.md`, active context, and current plan rather than carrying assumptions forward.
+- Switching directories is the physical signal: `cd <project-path>` means the current project's context is closed and the next one must be loaded explicitly.
+
+### Why
+
+Cross-project context bleed is the primary failure mode in parallel execution.
+An agent that reads Project A's `CLAUDE.md` and then starts making decisions in
+Project B without re-reading Project B's context is operating on stale assumptions.
+The mandatory handoff creates a clean break and a context load checkpoint.
+
+### Tooling Note
+
+Worktrees handle same-project parallel streams.
+Multiple clones handle cross-repo parallel work.
+Environment-specific worktree configuration belongs in `.dfw/personal-config.md`,
+not in this document.

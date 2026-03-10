@@ -1,0 +1,376 @@
+---
+title: "Vault Setup Guide"
+description: "How to use DFW alongside a team-managed Obsidian vault."
+icon: "book-open"
+---
+
+## What You're Setting Up
+
+The DFW environment has two layers that work together:
+
+1. **`FrankTewksbury/DFW`** — The shared DFW repository. It contains the docs, templates, scripts, and shared methodology your team builds on.
+
+2. **Team vault (optional)** — Some teams also keep a separate Obsidian vault for shared dashboards, journals, or governance notes. The exact vault path and folder layout are team-specific.
+
+3. **Project repos** — Each project is a separate git repo, cloned on demand into `02-Projects/`.
+
+This guide covers the optional Obsidian layer for teams that use one in addition to DFW. If your team does not use a shared vault, use the standard Git Collaboration onboarding docs and skip this guide.
+
+**Time to complete**: 30–45 minutes.
+
+---
+
+## Prerequisites
+
+Before starting, confirm you have:
+
+- **Git 2.5 or later** — `git --version` to check. Download at https://git-scm.com/downloads if needed.
+- **SSH configured for GitHub** — `ssh -T git@github.com` should return "Hi username!"
+- **Obsidian** installed — https://obsidian.md (free download, no account required)
+- **PowerShell 5.1+** (Windows) or **Bash** (Mac/Linux)
+- **The DFW repo URL** — ask your team lead. Clone it locally as `DFW`.
+- **The project repo URL** for the project you're joining — ask your team lead
+
+> **Before you start, confirm with your team lead that the setup scripts are deployed.**
+> `FrankTewksbury/DFW` must contain `Tools/scripts/workspace-setup.sh` (Mac/Linux) and
+> `Tools/scripts/workspace-setup.ps1` (Windows) before this guide will work. If the vault
+> is freshly migrated or still being set up, your team lead will give you the scripts
+> or a manual fallback. Do not skip this check — Step 1.3 will fail silently without them.
+
+---
+
+## Part 1: Clone and Configure the DFW Repo
+
+### 1.1 — Choose your workspace location
+
+Pick a folder on your machine where all DFW work will live. The name is yours to choose.
+
+```bash
+mkdir my-dfw-workspace
+cd my-dfw-workspace
+```
+
+### 1.2 — Clone DFW repo as DFW
+
+`FrankTewksbury/DFW` is always the first clone, always into a folder named `DFW`. This naming
+is the local convention — the folder name `DFW` makes the workspace scripts work,
+That keeps the local workspace examples consistent.
+
+Use the exact URL your team lead gave you — replace `team` with your organisation's GitHub name:
+
+```bash
+git clone git@github.com:FrankTewksbury/DFW.git DFW
+```
+
+### 1.3 — Run the workspace setup script
+
+**Mac / Linux:**
+```bash
+cd DFW
+./Tools/scripts/workspace-setup.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+cd DFW
+.\Tools\scripts\workspace-setup.ps1
+```
+
+If PowerShell blocks the script:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+The script does three things:
+1. Creates `02-Projects/` in your workspace root
+2. Installs the three DFW git aliases (`dfwsync-start`, `dfwsync-complete`, `dfwsync-resume`)
+3. Checks your git version and confirms setup completed
+
+**Verify aliases installed:**
+```bash
+git config --global --get alias.dfwsync-start
+# Should print the alias definition — not blank
+```
+
+### 1.4 — Verify your workspace layout
+
+```
+my-dfw-workspace/
+├── DFW/                ← DFW repo clone
+└── 02-Projects/      ← empty for now — projects go here
+```
+
+If the layout doesn't look like this, check the error output from the setup script.
+
+> **If the scripts don't exist yet** (new vault, scripts not deployed):  
+> Create `02-Projects/` manually: `mkdir 02-Projects` from your workspace root.  
+> Install git aliases manually — ask your team lead for the alias definitions, or see  
+> `Tools/scripts/` for the current helpers and then continue from Step 1.4.
+
+---
+
+## Part 2: Open the Vault in Obsidian
+
+### 2.1 — Open your team vault
+
+1. Launch Obsidian
+2. Click **"Open folder as vault"**
+3. Navigate to the shared vault folder your team uses and select it
+
+Obsidian will index the vault. When the left sidebar populates with the folder tree,
+you're in.
+
+### 2.2 — Verify you can find the shared areas
+
+Your team vault structure may differ, but you should be able to locate the equivalents of:
+
+- shared governance or methodology notes
+- any shared templates your team relies on
+- project index or dashboard notes, if your team keeps them
+- personal journal or private-note areas, if your team uses them
+
+If you cannot tell which folders are shared versus personal, stop and ask your team lead before editing anything.
+
+### 2.3 — Install required plugins (if not already installed)
+
+Go to **Settings → Community plugins → Browse** and install:
+
+- **Dataview** — powers the project dashboard and journal queries
+- **Templater** — enables the journal and session-close templates
+- **CardBoard** — the DFW kanban board (if your team uses it). Search exactly
+  "CardBoard" — it is a less common plugin and may not appear in top results.
+  If your team doesn't use CardBoard, skip it.
+
+After installing, enable each plugin. The vault's `.obsidian/` config may already
+have these — if you see them already active, skip this step.
+
+### 2.4 — Read CLAUDE.md
+
+Before doing anything else, read the vault's `CLAUDE.md` (at the root):
+
+```
+Obsidian sidebar → CLAUDE.md
+```
+
+This is the AI context file for the entire vault — the scope rules, routing guide,
+and active project status. It takes 3 minutes to read and tells you what everything
+is for.
+
+---
+
+## Part 3: Configure the Local Branch (Personal Layer)
+
+If your team's vault is git-backed, use a `local` branch for personal vault state. Journal entries, `.obsidian/workspace.json`, and personal notes should not merge into the shared branch.
+
+```bash
+cd DFW
+git checkout -b local
+git push origin local
+```
+
+If `local` already exists on the remote (a teammate set it up or it's your second
+machine), check it out instead:
+
+```bash
+git checkout local
+```
+
+**What goes on `local`:**
+- Your `journal/` entries — personal session journals stay personal
+- `.obsidian/workspace.json` — Obsidian's window state (personal)
+- Any personal annotations or scratch notes not ready for team review
+
+**What stays on `main` and requires a PR:**
+- Shared methodology docs and templates in `DFW/docs/` and `DFW/Tools/`
+- Shared scripts and scaffold assets in `DFW/Tools/`
+
+See the DFW Constitution, Git Collaboration docs, and your team's local vault rules for the governance contract.
+
+---
+
+## Part 4: Clone Your First Project
+
+### 4.1 — Fork the project repo on GitHub
+
+Before cloning, fork the central project repo to your own GitHub account. This is
+the DFW fork model: you work on your fork, you open PRs to central.
+
+If your team works directly on central (some small teams do), skip this step and ask
+your team lead.
+
+### 4.2 — Clone using the project-clone helper
+
+> **Prerequisite**: The project-clone scripts must exist in `DFW/Tools/scripts/`. If
+> they're not there, your team lead will either deploy them or give you the manual
+> clone steps below.
+
+**Mac / Linux:**
+```bash
+# From your workspace root:
+./DFW/Tools/scripts/project-clone.sh git@github.com:yourname/proj-rori.git RORI \
+    --upstream git@github.com:team/proj-rori.git
+```
+
+**Windows (PowerShell):**
+```powershell
+.\DFW\Tools\scripts\project-clone.ps1 git@github.com:yourname/proj-rori.git RORI `
+    -Upstream git@github.com:team/proj-rori.git
+```
+
+Replace `yourname/proj-rori` with your fork's URL, `team/proj-rori` with the central
+repo URL, and `RORI` with the folder name your team uses for this project.
+
+**If scripts aren't deployed yet — manual fallback:**
+```bash
+# From your workspace root:
+mkdir -p 02-Projects
+cd 02-Projects
+git clone git@github.com:yourname/proj-rori.git RORI
+cd RORI
+git remote add upstream git@github.com:team/proj-rori.git
+git fetch upstream
+```
+
+### 4.3 — Verify the project layout
+
+```
+my-dfw-workspace/
+├── DFW/                   ← shared DFW repo
+└── 02-Projects/
+    └── RORI/            ← your first project
+```
+
+**Verify remotes:**
+```bash
+cd 02-Projects/RORI
+git remote -v
+# origin    git@github.com:yourname/proj-rori.git (fetch)
+# origin    git@github.com:yourname/proj-rori.git (push)
+# upstream  git@github.com:team/proj-rori.git (fetch)
+# upstream  git@github.com:team/proj-rori.git (push)
+```
+
+> **If the project hasn't been pushed to GitHub yet** (local-only repo), `git remote -v`
+> will return nothing. That's expected for a project still in local setup. Your team lead
+> will tell you when the remote exists and you can add it with:
+> ```bash
+> git remote add origin git@github.com:yourname/proj-rori.git
+> git remote add upstream git@github.com:team/proj-rori.git
+> ```
+
+### 4.4 — Read the project CLAUDE.md
+
+A DFW project has two `CLAUDE.md` files at different levels:
+
+- **Project documentation** (repo-level docs, templates, and guidance): the team's high-level
+  summary of the project — phase, status, links to the code repo.
+- **Code repo** (`02-Projects/RORI/CLAUDE.md`): the detailed AI memory for that project
+  — architecture decisions, patterns to follow, known gotchas, mistakes to avoid.
+
+For your first session, read the **code repo** CLAUDE.md:
+```bash
+cat 02-Projects/RORI/CLAUDE.md
+```
+
+If the code repo doesn't have a `CLAUDE.md` yet (new project), check the vault stub
+for whatever context exists. Once the project is in active development, the code repo
+`CLAUDE.md` is the authoritative source.
+
+---
+
+## Part 5: Verify Everything Works
+
+Run through this checklist before calling setup complete:
+
+```
+[ ] Obsidian opens `DFW/` and shows the expected folder tree
+[ ] `docs/constitution/` is readable
+[ ] You can find your team's shared project index or equivalent dashboard note
+[ ] journal/ folder exists and contains the _config.yaml
+[ ] CLAUDE.md is readable from vault root
+[ ] git dfwsync-start works (alias is installed)
+[ ] 02-Projects/RORI/ (or your project) is cloned with correct remotes
+[ ] local branch exists in DFW repo and is pushed to your fork
+```
+
+If anything in this checklist fails, check the troubleshooting section below before
+reaching out to a teammate.
+
+---
+
+## Troubleshooting
+
+**Obsidian shows a blank vault / missing folders**  
+The vault folder you opened doesn't contain `.obsidian/`. You opened the wrong folder.
+Close the repo in Obsidian, re-open, and navigate to the `DFW/` directory.
+
+**`dfwsync-start` alias not found**  
+The workspace setup script didn't complete. Re-run it from inside `DFW` and check
+for errors.
+
+**`--ff-only` fails during dfwsync-start**  
+Your fork's `main` has commits that aren't in central. Fix:
+```bash
+git checkout main
+git reset --hard upstream/main
+git push origin main --force
+```
+Then re-run `dfwsync-start`.
+
+**PowerShell blocks the setup script**  
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+**Plugin not available in Community Plugins**  
+Make sure Community Plugins are enabled: Settings → Community plugins → turn off
+"Restricted mode".
+
+**02-Projects/ directory missing**  
+The setup script hasn't been run, or was run from the wrong directory. It must be run
+from inside `DFW`. Re-run it.
+
+**Project has no `upstream` remote / `git remote -v` returns nothing**  
+The project repo hasn't been pushed to GitHub yet — it's local only. This is expected
+for early-stage projects. Ask your team lead when the remote will be available, or add
+it manually once it exists (see Step 4.3).
+
+**Something else is wrong**  
+Check `docs/git-collaboration/` — most scenarios are documented there. If not, ask in the team
+channel and open an issue so the docs can be updated.
+
+---
+
+## What's Next
+
+Setup complete. Your next step is the First Session guide:
+
+```
+/git-collaboration/vault-onboarding/first-session
+```
+
+That guide walks you through your first actual DFW session from session open to
+session close — issue selection, worktree setup, commit conventions, and session CLOSE
+close.
+
+---
+
+## Reference: Key Files
+
+| File | Purpose |
+|------|---------|
+| `docs/constitution/` | DFW first principles — read before amending anything |
+| `docs/constitution/scope-rules` | Scope boundaries and routing rules |
+| `docs/operating-manual/tagging` | Tag routing contract and tagging rules |
+| `Tools/skills/` | Cross-project reusable skills and patterns |
+| `Tools/templates/` | Handoff, contribution, and scaffold templates |
+| Shared project index or dashboard | Team-wide project status overview |
+| `CLAUDE.md` (vault root) | AI context file — routing guide and active project summary |
+| `journal/_config.yaml` | Journal configuration — projects, tags, session phases |
+
+---
+
+**Related Documents**
+- [First Session](/git-collaboration/vault-onboarding/first-session) — your first DFW session walkthrough
+- [Scope Rules](/constitution/scope-rules) — what lives in the vault vs. project repos
+- [Branch Strategy](/git-collaboration/branch-strategy) — fork model and branch lifecycle

@@ -1,0 +1,487 @@
+---
+title: "Scenario C: Async Handoffs"
+description: "How one developer hands off active work to another without losing execution context."
+icon: "arrow-right-arrow-left"
+---
+
+## What This Scenario Covers
+
+Scenario C describes the case where work in progress transfers from one developer to another. Developer A owns a branch, reaches their session CLOSE, and classifies the issue as CONTINUABLE — but rather than picking it up in their next session, the work is handed to Developer B to continue.
+
+This is different from Scenario B (parallel workstreams) in one important way: in Scenario B, both developers are working simultaneously on separate issues. In Scenario C, one developer is stepping back and another is stepping in. It is a **relay**, not a parallel run. The baton must be passed cleanly.
+
+The core challenge is knowledge transfer across a developer boundary. Developer A has accumulated session context — decisions made, paths tried and rejected, constraints discovered — that lives entirely in their head and their personal journal. Developer B has none of it. Without a deliberate protocol, B starts cold: reading unfamiliar code, re-investigating decisions A already settled, and hitting the same edge cases A already navigated. The cross-developer handoff document is the mechanism that prevents this.
+
+---
+
+## When This Scenario Applies
+
+Scenario C is triggered when **all three** of the following are true:
+
+1. A branch is classified CONTINUABLE at session CLOSE (issue not complete, work will resume)
+2. The developer who owns the branch will **not** be the one resuming it
+3. Another developer is available and willing to pick it up
+
+Common situations:
+- Developer A is blocked on something outside the code (waiting on design, on leave, shifting priorities) and Developer B can make progress
+- Developer A has completed their sessions for a sprint and the issue is being reassigned
+- A team member departs and their open branches need to be picked up
+- The issue complexity warrants fresh eyes — a deliberate handoff for a second perspective
+
+---
+
+## The session CLOSE CONTINUABLE → Cross-Dev Path
+
+The standard session CLOSE CONTINUABLE path (documented in [Session-End Workflow](/git-collaboration/session-end-workflow)) ends with a handoff document written for the same developer's next session. Scenario C diverges at that last step: instead of writing a personal session handoff, Developer A writes a **Cross-Developer Handoff** using the full protocol.
+
+The difference in effort is significant. A personal handoff can be terse — you wrote the code, you know the context, you just need to jog your memory. A cross-developer handoff must be complete — it needs to stand alone for someone who has never seen this branch.
+
+```
+Standard session CLOSE CONTINUABLE:
+  Retro → push branch → write session handoff → done
+
+session CLOSE CONTINUABLE → Cross-Dev:
+  Retro → push branch → write CROSS-DEV handoff → notify B → confirm receipt → done
+```
+
+The confirmation step matters. A handoff document no one has read is not a handoff — it is a file. Developer A should explicitly notify Developer B (via team channel or direct message) that the handoff exists, where it is, and what B's first action should be.
+
+---
+
+## Developer A's Responsibilities
+
+### During the Session (Before session CLOSE)
+
+The best cross-developer handoffs are prepared incrementally, not in a rush at session end. As Developer A works, they should note:
+
+- Decisions made and their rationale (including rejected alternatives)
+- Anything surprising about the codebase or environment
+- Constraints that are not obvious from reading the code
+- Files that are safe to modify versus files that require coordination
+
+These notes don't have to be formal during the session — they can be wip commit messages, inline comments, or scratch notes. The session CLOSE handoff is where they get organized.
+
+### At session CLOSE: Writing the Handoff
+
+Developer A fills out the full Cross-Developer Handoff template from `DFW/Tools/templates/PROTOCOL-cross-dev-handoff.md`. No sections skipped for a CONTINUING handoff to an unknown recipient or a developer new to this area of the codebase.
+
+Key sections that matter most:
+
+**Issue State — CONTINUING**: Branch name, exact resume point (specific file and function, not "the auth stuff"), and explicit "do not touch" list for anything fragile or mid-implementation.
+
+**Team Context**: If B doesn't know this area of the codebase, they need orientation before they look at a single line of code. What does this project do? What does this module do? Who owns adjacent areas?
+
+**Environment Setup**: Every command B needs to check out the branch, set up their environment, and verify it's working. Include the verification command with expected output. A setup that takes B 30 minutes to figure out is a failure of the handoff.
+
+**Decisions Made**: This section is the most valuable and most often underdeveloped. For every significant decision on the branch, document: what was decided, why (including what was rejected), and whether it is final or open to revisitation. B will encounter these decision points in the code. Without this section, B either re-investigates the same ground or changes something A carefully decided — both outcomes waste time.
+
+**What Needs to Happen Next — Priority**: B should be able to start the first session with a clear, specific first action. "Continue implementing the user profile module" is not actionable. "Add the avatar upload endpoint in `src/profile/profile.controller.ts` — interface spec is in `docs/api/profile.md` section 3" is actionable.
+
+### After Writing: Notify and Confirm
+
+```bash
+# Push the branch so B can access it
+git push origin feature/43-user-profile
+
+# Store the handoff document in the repo (not just local files)
+# Convention: prompts/handoffs/CROSS-DEV-HANDOFF-[issue]-[date].md
+git add prompts/handoffs/CROSS-DEV-HANDOFF-43-20260218.md
+git commit -m "docs: add cross-dev handoff for issue #43
+
+Session: S20260218
+Issue: #43
+Phase: Close
+Handoff: to devB — CONTINUING"
+
+git push origin feature/43-user-profile
+```
+
+Then notify B: team channel or direct message, with the branch name, handoff document path, and one sentence on what B's first action should be.
+
+> **On squashing**: The handoff document commit (`docs: add cross-dev handoff...`) is a
+> clean `docs:` commit, not a `wip:` commit. When B eventually squashes wip commits before
+> opening the PR, this commit should **not** be squashed — it's a permanent record that
+> the handoff existed. It will be present in the branch history but won't appear in main
+> after the PR squash merge. This is correct behaviour.
+
+---
+
+## Developer B's Responsibilities
+
+### Receiving the Handoff
+
+Before B touches a single file, they read the entire handoff document. This is not optional and not something to skim. The 15 minutes spent reading the handoff will save hours of investigation during the session. Pay particular attention to:
+
+- The **"Do not touch"** list — this is A flagging things that are mid-implementation or fragile
+- **Decisions Made** — understanding what A already settled prevents rediscovering the same ground
+- **Known broken** in the environment state — avoid running something A flagged as intentionally incomplete
+
+### Setting Up the Environment
+
+Follow the Environment Setup section of the handoff exactly. If any step fails, contact Developer A before proceeding — a broken setup produces confusing errors that can look like code problems.
+
+```bash
+# Standard setup from handoff:
+git remote add devA git@github.com:devA/rori.git   # if not already added
+git fetch devA
+git worktree add ../rori-43-profile devA/feature/43-user-profile
+cd ../rori-43-profile
+./scripts/worktree-setup.sh
+
+# Run the verification command from the handoff
+npm test -- --grep "profile"
+# Expected: 8 passing, 3 pending (pending = not yet implemented — B's work)
+```
+
+### Starting the First Session: The Resume Commit
+
+Developer B's first commit on the branch is a resume commit — the same convention used for solo session continuation, but with an additional field acknowledging the handoff:
+
+```
+chore: resume session S20260218 on issue #43
+
+Resuming from: devA cross-dev handoff (prompts/handoffs/CROSS-DEV-HANDOFF-43-20260218.md)
+Current state: Avatar upload endpoint scaffolded, not yet wired to storage layer.
+devA's handoff read and understood. Environment verified: 8 passing, 3 pending.
+Starting with: profile.controller.ts — addAvatarUpload handler
+
+Session: S20260218_1400
+Issue: #43
+Phase: 1 - Research
+```
+
+This commit does three things: it establishes B's presence on the branch, it creates a permanent record that the handoff was received and read, and it gives anyone watching the branch history a clear marker of where the baton was passed.
+
+### During the Session
+
+B proceeds through WORK and CLOSE as normal. The handoff document serves as START context — B doesn't need to reconstruct what A did, they can move directly to planning.
+
+When B encounters something the handoff didn't cover — an undocumented constraint, a surprising behavior, a decision point not addressed — they document it. Either in a wip commit message, in a code comment, or in a note that will feed their own session CLOSE handoff document. The knowledge that B accumulates doesn't evaporate at session end.
+
+### If B Has Questions
+
+Contact Developer A if available. The handoff's Contact section specifies A's availability. Use the team channel for questions that benefit from broader visibility (architectural concerns, unclear requirements). Use direct contact for questions that are specific to what A personally decided or implemented.
+
+If A is unavailable and the question is blocking, check:
+1. `CLAUDE.md` — team conventions that may answer the question
+2. PR history — if the affected code was built in a previous PR, the PR description may have the rationale
+3. The person listed in the "If author unavailable" field of the handoff
+
+---
+
+## Concrete Example: devA Hands Off Issue #43 to devB
+
+**The situation**: devA has been building the user profile module for rori across two sessions. They're halfway through — profile CRUD is working, but avatar upload and profile search are not yet implemented. DevA's priorities have shifted; devB is picking up the issue.
+
+---
+
+### devA's session CLOSE — Session S20260218_0900
+
+devA has completed two sessions on `feature/43-user-profile`. At session CLOSE, the issue is CONTINUABLE and the work is being handed off.
+
+**session CLOSE retrospective note:**
+> Profile CRUD complete and tested. Avatar upload scaffolded but not wired. Search endpoint not started. Handing to devB — they know the storage layer better than I do, good fit.
+
+**devA writes the cross-developer handoff:**
+
+```markdown
+# Cross-Dev Handoff: User Profile Module — issue #43
+
+**From Developer**: devA — @devA — Slack: @alex
+**To Developer**: devB — @devB
+**Author Available**: Limited (available async on Slack until end of week, then off)
+**Date**: 2026-02-18
+**Session**: S20260218_0900
+**Project**: rori
+
+---
+
+## Issue State
+
+**Status**: CONTINUING
+
+- **Branch**: `feature/43-user-profile` (fork: github.com/devA/rori)
+- **Resume from**: `src/profile/profile.controller.ts` — `addAvatarUpload` handler.
+  The handler exists and validates the request, but `this.storageService.upload()` is
+  stubbed to throw a not-implemented error. Wire it to the real StorageService.
+- **Do not touch**: `src/profile/profile.interface.ts` — this interface is consumed by
+  the notifications module (issue #47, not yet started). Changing the shape here will
+  require coordinating with whoever picks up #47.
+
+---
+
+## Team Context
+
+**Project**: rori — a research organization management tool. Manages researchers,
+projects, publications, and inter-team collaboration.
+
+**This issue's role**: The user profile module (issue #43) adds profile pages to rori.
+Each researcher has a profile: display name, bio, avatar, and affiliated projects.
+This is a dependency for the researcher directory feature (issue #51).
+
+**Area of codebase**: `src/profile/` — new module, no existing code in main.
+Adjacent modules to be aware of: `src/auth/` (JWT identity, issue #42 — merged),
+`src/storage/` (file storage service — already in main, devB knows this area well).
+
+**Key docs to read first**:
+- `CLAUDE.md` — JWT payload shape (auth decision from issue #42, critical context)
+- `docs/api/profile.md` — API spec for all profile endpoints
+
+---
+
+## Environment Setup
+
+**Central repo**: `github.com/team/rori`
+**Fork to use**: `github.com/devA/rori` (or create your own fork and cherry-pick —
+your call, but the branch is ready on devA's fork)
+**Branch**: `feature/43-user-profile`
+
+```bash
+git remote add devA git@github.com:devA/rori.git
+git fetch devA
+git worktree add ../rori-43-profile devA/feature/43-user-profile
+cd ../rori-43-profile
+./scripts/worktree-setup.sh
+```
+
+**Verify**: `npm test -- --grep "profile"`
+Expected: **8 passing, 3 pending**. The 3 pending tests are the ones devB will implement:
+`addAvatarUpload`, `searchProfiles`, `deleteAvatar`. If you see failures (not pending),
+something is wrong — contact devA before proceeding.
+
+**Environment variables**: Copy `.env.example` to `.env.local`.
+`STORAGE_BUCKET` is set in `.env.example` to the dev bucket — no change needed locally.
+
+---
+
+## Context
+
+### What Was Done
+- Defined `IUserProfile` interface in `profile.interface.ts` (see note in Issue State — do not change shape)
+- Implemented `ProfileService` CRUD: create, read, update, delete profile (all tested)
+- Implemented `ProfileController` routes for CRUD — all passing
+- Scaffolded `addAvatarUpload` handler and written the test (test is pending — implementation is the stub)
+- Wrote `searchProfiles` test (pending — no implementation yet)
+- Wrote `deleteAvatar` test (pending — no implementation yet)
+
+### Decisions Made
+
+**Decision**: Store avatar as a reference URL, not binary data in the profile record  
+**Rationale**: Keeps the profile table lightweight. Storage service handles the binary.
+The profile record holds the URL returned by StorageService after upload.  
+**Alternatives considered**: Base64 in DB (rejected — poor performance, no CDN benefit);
+storing filename only (rejected — too coupled to storage implementation details)  
+**Status**: Final — profile.interface.ts already reflects this (avatarUrl: string | null)
+
+**Decision**: Profile search uses simple `ILIKE` text match for now, not full-text search  
+**Rationale**: Full-text search is deferred to a future issue. Simple ILIKE covers the
+MVP requirement and avoids introducing a search dependency in this issue.  
+**Alternatives considered**: PostgreSQL full-text with tsvector (good eventual solution,
+deferred — create a new issue for it after this PR merges)  
+**Status**: Final for this issue — a follow-up issue for full-text search is appropriate
+
+### Current State
+- Tests: 8 passing, 3 pending (pending = not yet implemented, not failures)
+- Build: clean
+- Known broken: `addAvatarUpload` throws not-implemented — do not call this endpoint
+  until devB wires the storage integration
+
+---
+
+## Intent
+
+### Priority
+**Must complete** (blocks issue #51 — researcher directory):
+- Wire `addAvatarUpload` to `StorageService.upload()` — return URL, store in profile record
+- Implement `searchProfiles` — ILIKE match on `displayName` and `bio` fields
+
+**Should complete**:
+- Implement `deleteAvatar` — call `StorageService.delete()`, set `avatarUrl` to null
+
+**Minimum viable** (to unblock issue #51):
+- Avatar upload working end-to-end. Search can follow in the same PR.
+
+### What Needs to Happen Next
+1. Wire `addAvatarUpload` in `profile.controller.ts` — call `this.storageService.upload(file)`,
+   set `profile.avatarUrl = result.url`, persist via `profileService.update()`
+2. Implement `searchProfiles` in `profile.service.ts` — ILIKE query on displayName + bio
+3. Implement `deleteAvatar` — storage delete + null out avatarUrl
+4. All 3 pending tests should pass — green suite = ready for PR
+
+### Success Criteria
+- [ ] All 11 profile tests passing (8 existing + 3 new)
+  **Verify**: `npm test -- --grep "profile"` → 11 passing, 0 pending
+- [ ] Avatar upload returns a URL stored on the profile record
+  **Verify**: POST /api/profile/:id/avatar → 200, profile.avatarUrl is a valid URL
+- [ ] Search returns matching profiles
+  **Verify**: GET /api/profile/search?q=alice → returns profiles with "alice" in name or bio
+
+---
+
+## Constraints
+
+### Hard Constraints
+- `IUserProfile` interface shape: do not change — issue #47 depends on it
+- `StorageService` API: use the existing service, do not modify it for this issue
+
+### Soft Constraints
+- Avatar URL stored on the profile record (versus a separate avatars table) — can be
+  discussed for a future refactor, but keep it as-is for this PR
+
+### Dependencies
+**This work depends on**: Auth module (issue #42) — already merged ✅
+**Other work depends on this**: Researcher directory (issue #51) — blocked until this PR merges
+
+---
+
+## Files
+
+### Key Files
+- `src/profile/profile.controller.ts` — **primary work file** — addAvatarUpload is here
+- `src/profile/profile.service.ts` — add searchProfiles and deleteAvatar here
+- `src/profile/profile.interface.ts` — read-only for this issue
+- `src/profile/__tests__/profile.controller.spec.ts` — 3 pending tests to implement against
+- `src/storage/storage.service.ts` — use this, do not modify
+
+---
+
+## Contact
+
+**For questions**: @devA on Slack — available async until end of week
+**If devA unavailable**: @lead-dev knows the storage layer; check PR #42 for auth context
+**Team sync**: Thursday standup if async isn't sufficient
+```
+
+**devA commits the handoff and notifies devB:**
+
+```bash
+git add prompts/handoffs/CROSS-DEV-HANDOFF-43-20260218.md
+git commit -m "docs: add cross-dev handoff for issue #43
+
+Session: S20260218_0900
+Issue: #43
+Phase: Close
+Handoff: CONTINUING → devB
+State: 8 passing, 3 pending. Avatar upload stubbed, search not started."
+
+git push origin feature/43-user-profile
+```
+
+Team channel message:
+> Handing off #43 (user profile module) to @devB. Branch `feature/43-user-profile` on my fork. Handoff doc in `prompts/handoffs/CROSS-DEV-HANDOFF-43-20260218.md`. First action: wire the avatar upload handler to StorageService — you know that service better than I do. Let me know if anything in the handoff is unclear before Thursday.
+
+---
+
+### devB's Session — S20260218_1400
+
+**devB reads the handoff.** Reads all of it. Notes the "do not touch" on the interface, the decisions on avatar storage and search strategy, and the exact resume point. Sets up the environment:
+
+```bash
+git remote add devA git@github.com:devA/rori.git
+git fetch devA
+git worktree add ../rori-43-profile devA/feature/43-user-profile
+cd ../rori-43-profile
+./scripts/worktree-setup.sh
+npm test -- --grep "profile"
+# ✓ 8 passing, 3 pending — matches handoff exactly
+```
+
+**devB writes the resume commit:**
+
+```
+chore: resume session S20260218 on issue #43
+
+Resuming from: devA cross-dev handoff (prompts/handoffs/CROSS-DEV-HANDOFF-43-20260218.md)
+Handoff read. Environment verified: 8 passing, 3 pending — matches exactly.
+devA's decisions understood: avatar stored as URL, search as ILIKE.
+Starting with: addAvatarUpload in profile.controller.ts
+
+Session: S20260218_1400
+Issue: #43
+Phase: 2 - Planning
+```
+
+**devB implements all three endpoints** in a single focused session. The handoff gave B everything needed to work without investigating A's context — the storage service API, the interface constraint, the search strategy. Three sessions of devA's accumulated knowledge, transferred in 15 minutes of reading.
+
+**All 11 tests pass.** devB runs session CLOSE:
+
+- Issue: COMPLETE — all success criteria met
+- Squash wip commits, open PR #43
+- PR Session History includes: devA's two sessions and devB's session, with a note on the handoff
+
+**PR description Session History section:**
+```
+## Session History
+
+| Session | Developer | Work |
+|---------|-----------|------|
+| S20260217_0900 | devA | Profile CRUD — interface, service, controller, all tests passing |
+| S20260217_1400 | devA | Avatar upload scaffolded, search and delete tests written (pending) |
+| S20260218_1400 | devB | Received cross-dev handoff. Wired avatar upload, implemented search and delete. All 11 tests passing. |
+```
+
+The full three-session history is preserved in the PR. A reviewer can trace every decision — devA's interface choice, devB's storage wiring — without asking either developer to reconstruct it.
+
+---
+
+## When the Handoff Involves a Decomposed Issue
+
+If Developer A's session CLOSE result is SCOPE CHANGED — the issue is larger than one branch — and the child issues are being handed to Developer B, the handoff takes a slightly different form.
+
+A still writes a cross-developer handoff, but the Issue State section reflects DECOMPOSED:
+
+```markdown
+## Issue State
+
+**Status**: DECOMPOSED
+
+- **Original branch**: `feature/43-user-profile` — leave open, A will close after child PRs merge
+- **New issues created**: #54 avatar-upload-and-delete, #55 profile-search
+- **Start with**: #54 — independent of #55
+- **Context carried forward**: All decisions in this handoff apply to both child issues.
+  Interface constraint on IUserProfile applies to both.
+```
+
+The rest of the handoff — Team Context, Decisions Made, Constraints — carries forward unchanged. B treats each child issue as a new branch started from the latest main, but with A's full decision context in hand.
+
+**What happens to A's original branch?** After decomposition, A's original branch (`feature/43-user-profile`) is no longer the active work vehicle — the child issues are. A should follow the **ABANDONED path** from [Session-End Workflow](/git-collaboration/session-end-workflow):
+- Write a closing commit on the original branch documenting what was done and why it decomposed
+- Push the branch (preserves the history)
+- Close the original issue in the tracker as "decomposed into #54 and #55"
+- Leave the branch on the fork for one sprint cycle, then delete
+
+The context accumulated on the original branch isn't lost — the cross-dev handoff document captures the decisions, and the closing commit on the original branch records the decomposition rationale.
+
+---
+
+## What Makes a Good Cross-Developer Handoff
+
+The difference between a handoff that sets B up to succeed and one that leaves B stranded is rarely length — it's specificity in the right places.
+
+**Specificity that matters:**
+- The exact resume point (file, function, line) — not a vague area description
+- Decisions with rationale *and rejected alternatives* — knowing what A tried and discarded is as valuable as knowing what A chose
+- The "do not touch" list — these are the landmines; explicit is better than discovered
+- Verification commands with expected output — "it should work" is not verifiable; "8 passing, 3 pending" is
+
+**What can be lighter:**
+- Team Context if B already knows the project well
+- Contact if A is readily available and the team has fast communication norms
+- Environment Setup if B has worked on this codebase before and just needs the branch
+
+When in doubt, write more. A handoff that takes A an extra 20 minutes to write completely might save B an hour of investigation. That is a good trade.
+
+---
+
+## Flywheel Connection
+
+The async handoff is the most demanding test of the DevFlywheel's context discipline. In a solo session, context lives in your head and your journal — you can afford to be informal. In a team session, context lives in the branch history, the commit messages, the PR descriptions, and the team CLAUDE.md — you cannot afford informality because your collaborator has no other source. Scenario C makes this visible: every wip commit message, every decision documented in a resume commit, every constraints section in a handoff document is hours of future session time that doesn't get spent on reconstruction. P1 (Context Is Currency) is not a metaphor — it is the mechanism by which knowledge compounds across developer boundaries instead of resetting at each one.
+
+---
+
+## Related Documents
+- `DFW/Tools/templates/PROTOCOL-cross-dev-handoff.md` — full handoff template and field reference
+- [Session-End Workflow](/git-collaboration/session-end-workflow) — session CLOSE CONTINUABLE path that triggers this scenario
+- [Branch Strategy](/git-collaboration/branch-strategy) — branch checkout and worktree setup
+- [Scenario B: Parallel Workstreams](/git-collaboration/scenario-b-parallel-workstreams) — related: dependency branch handoffs
+- [PR Conventions](/git-collaboration/pr-conventions) — Session History section, wip squash before PR

@@ -1,0 +1,399 @@
+---
+title: "Commit Conventions"
+description: "Commit formats, trailers, and history rules for DFW team workflows."
+icon: "git-commit"
+---
+
+## Why Commit Conventions Matter in DFW
+
+In a solo development session, a commit is a save point. In a DFW team, a commit is a **communication artifact** — it carries context across session boundaries, developer boundaries, and time. A commit written today will be read by a teammate next week, by a reviewer tomorrow, and by your future self next month when tracking down a regression.
+
+The conventions in this document serve three audiences simultaneously:
+- **The reviewer** reading your PR — clean, logical history that tells the story of what changed and why
+- **The resuming developer** (you or a teammate) — session markers that make reloading context fast
+- **Future developers** — a queryable record of decisions, surprises, and evolution
+
+This is P1 (Context Is Currency) applied to git history.
+
+---
+
+## The Commit Message Format
+
+Every commit follows this structure:
+
+```
+[type](scope): short description
+
+[optional body]
+
+Session: S<YYYYMMDD>_<HHMM>
+Issue: #[N]
+Phase: [1–4] - [Phase Name]
+```
+
+### Subject Line Rules
+
+- **Format**: `[type](scope): description`
+- **Length**: Maximum 72 characters
+- **Voice**: Imperative — "add token validation" not "added" or "adds"
+- **Case**: Lowercase type and scope; description capitalisation is flexible
+- **No period** at the end
+
+```
+# Good
+feat(auth): add JWT token generation
+fix(payments): guard against null customer ID
+docs(api): update auth endpoint spec
+chore: add dfwsync aliases to gitconfig
+
+# Bad
+Added JWT token generation       ← past tense, no type/scope
+feat(auth): Added JWT            ← past tense
+FEAT(AUTH): Add JWT Token Gen.   ← uppercase, trailing period
+feat(auth): implement the complete JWT token generation system including refresh ← too long
+```
+
+### Body (Optional but Encouraged)
+
+The body explains **what and why**, not how. Use it when the subject line alone leaves a question unanswered:
+
+```
+feat(auth): use RS256 over HS256 for token signing
+
+RS256 uses asymmetric keys — the public key can be distributed to
+third-party services without exposing signing capability.
+HS256 would require sharing the secret with every consumer.
+```
+
+Leave the body empty when the subject is fully self-explanatory:
+```
+test(auth): add unit tests for token expiry
+```
+
+### The DFW Trailer Block
+
+Every commit carries a trailer block identifying the session, issue, and phase. This is what makes the commit log a queryable DFW journal:
+
+```
+Session: S20260217_1400
+Issue: #42
+Phase: 3 - Implementation
+```
+
+**Session ID format**: `S<YYYYMMDD>_<HHMM>` — date plus time in 24h format at session start.
+
+**Phase values**:
+- `Phase: 1 - Scaffold` (new projects only)
+- `Phase: 2 - Research`
+- `Phase: 3 - Planning`
+- `Phase: 4 - Implementation`
+- `Phase: 5 - Validate`
+
+The trailer block is required on all commits. It makes every commit traceable to a session, an issue, and a phase — enabling future developers (and AI assistants) to reconstruct the history of a decision.
+
+---
+
+## Commit Types
+
+### Standard Types
+
+| Type | When to Use | Example |
+|------|------------|---------|
+| `feat` | New feature or user-facing capability | `feat(auth): add refresh token rotation` |
+| `fix` | Bug fix | `fix(payments): guard against null customer ID` |
+| `docs` | Documentation only — no code change | `docs(api): update auth endpoint spec` |
+| `test` | Adding or updating tests | `test(auth): add edge case for expired tokens` |
+| `refactor` | Code restructure with no behaviour change | `refactor(auth): extract token utils to own module` |
+| `chore` | Build, config, tooling, dependencies | `chore: upgrade jsonwebtoken to 9.0` |
+| `research` | Research notes, spikes, explorations | `research(auth): evaluate RS256 vs HS256 trade-offs` |
+
+### DFW-Native Types
+
+These types exist because DFW session rhythm creates commit patterns that standard conventions don't cover:
+
+| Type | When to Use | Example |
+|------|------------|---------|
+| `wip` | Session save point — incomplete work, not a logical unit | `wip: end of session — refresh token logic in progress` |
+| `chore: resume` | Opening commit of a new session on a continuable branch | `chore: resume session S20260218 on issue #42` |
+
+**`wip` commits** are session boundary markers. They signal to any reader: "this commit is not a clean unit of work — the branch was saved here because the session ended, not because the task was complete." `wip` commits are always squashed before a PR is opened.
+
+**`chore: resume` commits** are required at the start of every new session on an existing branch. They create a permanent, queryable session boundary in the commit log. See [Resume Commits](#resume-commits) below.
+
+---
+
+## Scope
+
+Scope is the module, layer, or area the commit touches. Use it consistently within a project:
+
+```
+feat(auth): ...       ← auth module
+fix(payments): ...    ← payments module
+docs(api): ...        ← API documentation
+test(profile): ...    ← user profile module
+chore: ...            ← no scope when change is project-wide
+```
+
+**Scope is freeform** — teams define their own scopes based on the project's module structure. The important thing is consistency within a project so commit history is filterable:
+
+```bash
+# Find all auth-related commits
+git log --oneline --grep="(auth)"
+
+# Find all commits in a session
+git log --oneline --grep="Session: S20260217"
+
+# Find all commits for an issue
+git log --oneline --grep="Issue: #42"
+```
+
+---
+
+## Resume Commits
+
+When picking up a continuable branch in a new session, the **first commit of the session is a required resume commit** — even if no code changes accompany it (use `--allow-empty`).
+
+### Format
+
+```
+chore: resume session S20260218 on issue #42
+
+Resuming from: S20260217
+Handoff ref: 2026-02-17-handoff-resume-issue-42.md
+Current state: JWT generation and validation complete.
+               Refresh token rotation in progress — rotation logic done,
+               need to add the token family invalidation.
+Next: Implement token family invalidation, then write tests.
+
+Session: S20260218_0900
+Issue: #42
+Phase: 1 - Research
+```
+
+### Why It's Required
+
+The commit log and the DFW handoff document are **complementary context artifacts** — the handoff carries the reasoning and decisions, the commit log carries the code state. A session that starts on an existing branch without a resume commit leaves a gap: the code was worked on, but the log shows no trace of that session boundary. This matters when:
+
+- A teammate picks up the branch later and wants to understand the session history
+- An AI assistant loads the repository and needs to reconstruct context
+- You return to the branch after a long gap and need to understand the arc of work
+
+### Command
+
+```bash
+# When no code changes yet at session start:
+git commit --allow-empty -m "chore: resume session S20260218 on issue #42
+
+Resuming from: S20260217
+Handoff ref: 2026-02-17-handoff-resume-issue-42.md
+Current state: [brief state summary]
+Next: [what needs to happen this session]
+
+Session: S20260218_0900
+Issue: #42
+Phase: 1 - Research"
+```
+
+---
+
+## `wip` Commits
+
+`wip` commits are session save points — a deliberate mechanism for committing work that is intentionally incomplete.
+
+### When to Use
+
+- End of session on a continuable issue (session CLOSE CONTINUABLE path)
+- Mid-session save before switching to another worktree (hotfix, interruption)
+- Preserving a working state before attempting a risky refactor
+
+### Format
+
+```
+wip: [brief state description]
+
+Session: S20260217_1400
+Issue: #42
+State: [what's done, what's not]
+Next: [what the resuming developer should do first]
+Handoff: [handoff doc filename if created]
+```
+
+**Example**:
+```
+wip: end of session — refresh token rotation in progress
+
+Session: S20260217_1400
+Issue: #42
+State: JWT generation and validation complete (tests passing).
+       Refresh token rotation logic written but token family
+       invalidation not yet implemented.
+Next: Implement token family invalidation in auth.service.ts,
+      then write tests for the full rotation flow.
+Handoff: 2026-02-17-handoff-resume-issue-42.md
+```
+
+### `wip` Commits Are Always Squashed Before PR
+
+Before opening a PR, squash all `wip` commits from the branch history. The session notes they carry are transferred to the PR description's **Session History** section — not discarded. See [PR Conventions](/git-collaboration/pr-conventions) for how to populate Session History from `wip` commit messages.
+
+```bash
+# Interactive rebase to squash wip commits before PR
+git rebase -i main
+# In the editor: change 'pick' to 'squash' (or 's') for all wip commits
+# Combine into the nearest logical commit above them
+```
+
+---
+
+## Planning Commits (Optional)
+
+After planning and before writing any implementation code, consider opening the branch's implementation work with a planning commit:
+
+```
+docs: add acceptance criteria for issue #42
+
+Acceptance criteria:
+  - [ ] JWT tokens issued on login with RS256 signing
+  - [ ] Refresh tokens stored as httpOnly cookies
+  - [ ] Expired/invalid tokens return 401 with error body
+  - [ ] Token rotation invalidates previous refresh token family
+
+Session: S20260217_1000
+Issue: #42
+Phase: 2 - Planning
+```
+
+This creates a clean marker in history: everything before is setup, everything after is implementation. Makes PR review cleaner — reviewers see exactly what was promised and can verify delivery commit by commit.
+
+---
+
+## Complete Examples
+
+### A feature issue across two sessions
+
+```
+# Session 1 (S20260217)
+
+docs: add acceptance criteria for issue #42        ← planning commit
+feat(auth): implement JWT token generation          ← implementation
+feat(auth): add token validation middleware
+wip: end of session — refresh token rotation next  ← session save
+
+# Session 2 (S20260218)
+
+chore: resume session S20260218 on issue #42       ← required resume commit
+feat(auth): implement refresh token rotation
+feat(auth): add token family invalidation
+test(auth): add unit tests for token rotation
+```
+
+Before opening the PR, the two `wip`/`chore` commits are squashed and their notes move to the PR's Session History section. The reviewer sees:
+
+```
+docs: add acceptance criteria for issue #42
+feat(auth): implement JWT token generation
+feat(auth): add token validation middleware
+feat(auth): implement refresh token rotation
+feat(auth): add token family invalidation
+test(auth): add unit tests for token rotation
+```
+
+Clean, logical, tells a story. The Session History section of the PR carries the timeline context.
+
+### A hotfix
+
+```
+fix(payments): guard against null customer ID on checkout
+
+Customer IDs can be null when guest checkout is used without an
+account. The payment processor was throwing a 500 rather than
+returning a structured error.
+
+Session: S20260217_1530
+Issue: #51
+Phase: 3 - Implementation
+```
+
+No `wip` commits — hotfixes complete in one session and go straight to PR.
+
+### A `research` spike
+
+```
+research(auth): evaluate RS256 vs HS256 for JWT signing
+
+RS256 (asymmetric): public key distributable to consumers without
+exposing signing capability. Better for multi-service architectures.
+HS256 (symmetric): simpler, same secret required everywhere.
+Recommendation: RS256 given anticipated third-party integrations.
+
+Session: S20260215_1400
+Issue: #38
+Phase: 1 - Research
+```
+
+---
+
+## AI-Assisted Development
+
+DFW teams commonly use AI tools (Claude Code, Cursor, GitHub Copilot) during
+implementation. The commit conventions apply identically whether the code was written
+by a human or generated by an AI tool — the human is always the commit author.
+
+**The commit records the human's session, not the AI's session.** The session ID,
+issue reference, and phase marker all reflect the human developer's work context.
+
+**Humans review AI output before committing.** P2 (Humans Steer, AI Executes) applies
+to every commit. Do not commit AI-generated code without reading and validating it. The
+commit is the human's attestation that the code is correct and intentional.
+
+**Commit message quality still matters.** AI tools sometimes generate verbose or
+low-quality commit messages. The human author is responsible for the message — rewrite
+it if needed before committing.
+
+There is no special commit type for AI-assisted work. A `feat:` commit is a `feat:`
+commit regardless of how the implementation was produced. If the AI made a significant
+contribution worth noting, put it in the commit body:
+
+```
+feat(auth): implement refresh token rotation
+
+Implemented with Claude Code assistance. Reviewed and validated against
+acceptance criteria before committing.
+
+Session: S20260218_1000
+Issue: #42
+Phase: 3 - Implementation
+```
+
+---
+
+## Quick Reference
+
+```
+[type](scope): description (imperative, max 72 chars)
+[blank line]
+[optional body: what and why]
+[blank line]
+Session: S<YYYYMMDD>_<HHMM>
+Issue: #[N]
+Phase: [1-4] - [Name]
+```
+
+**Types**: `feat` `fix` `docs` `test` `refactor` `chore` `research` `wip`  
+**DFW-native**: `wip` (save point) · `chore: resume` (session open)  
+**Scope**: module or area name, consistent within project  
+**Trailers**: required on every commit — Session, Issue, Phase  
+**Phase values**: 1-Scaffold (new projects) · 2-Research · 3-Planning · 4-Implementation · 5-Validate
+
+---
+
+## Flywheel Connection
+
+Every commit that carries a session ID, issue reference, and phase marker is a **node in the DFW learning graph**. Six months from now, a developer can run `git log --grep="Issue: #42"` and reconstruct the complete arc of a decision — which sessions touched it, what changed in each, what the open questions were. `wip` notes preserved in PR Session History add the human layer to that graph: not just what the code did, but how the developer's thinking evolved. The commit log compounds.
+
+---
+
+## Related Documents
+- [Branch Strategy](/git-collaboration/branch-strategy) — how commits map to branch lifecycle
+- [Session-End Workflow](/git-collaboration/session-end-workflow) — which commit type to write in session CLOSE
+- [PR Conventions](/git-collaboration/pr-conventions) — how `wip` notes transfer to Session History

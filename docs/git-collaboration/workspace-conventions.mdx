@@ -1,0 +1,191 @@
+---
+title: "Workspace Conventions"
+description: "Workspace layout, repository boundaries, and clone conventions for DFW teams."
+icon: "folder-tree"
+---
+
+## Purpose
+
+This document defines the standard layout and conventions for a DevFlywheel workspace when using the multi-repo model. It is the authoritative reference for how repos are named, where they live, how they relate to each other, and how a developer sets up a working environment from scratch.
+
+Every setup script, README, and onboarding guide in this project implements these conventions. If a script and this document disagree, this document is correct.
+
+---
+
+## The Core Model
+
+A DevFlywheel workspace is a folder on a developer's machine that contains multiple independent git repos in a standard layout. The workspace folder itself is not a git repo — it is a container.
+
+```
+{workspace}/                        ← developer-named root (NOT a git repo)
+├── DFW/                        ← repo: FrankTewksbury/DFW (cloned as `DFW`)
+└── 02-Projects/
+    ├── RORI/                       ← repo: proj-rori
+    ├── GitCollabPlaybook/          ← repo: proj-git-collab-playbook
+    └── {ProjectName}/              ← repo: project repos (cloned on-demand)
+```
+
+The workspace root name is the developer's choice. The internal structure is standardized and non-negotiable — scripts and path references depend on it.
+
+**A personal journal is not part of the shared workspace structure.** See [Journal Convention](#journal-convention) below.
+
+---
+
+## Repository Conventions
+
+> **Status**: Adopted (S20260219 — Paul Githens + Frank Nazzaro). These names are the working convention going forward. If the team decides to change either name before DFW repo is published, update this document, the README, and the two setup scripts (`workspace-setup.sh`, `project-clone.sh`).
+
+| Repo | Name | Purpose |
+|------|------|---------|
+| Shared DFW repo | `FrankTewksbury/DFW` (cloned locally as `DFW`) | Constitution docs, templates, scripts, and shared methodology |
+| Individual project | Project-specific repos | One repo per project, cloned into `02-Projects/` as needed |
+
+**Naming rules:**
+- Kebab-case only — no underscores, no capitals
+- Project name should match the folder name inside `02-Projects/` (lowercased and hyphenated)
+
+---
+
+## The Shared DFW Repo
+
+**`FrankTewksbury/DFW`** is the shared DFW repository. Clone it locally as `DFW` so the workspace conventions and examples stay consistent.
+
+`DFW repo` is always the first repo a developer clones. It contains:
+
+```
+DFW/                  ← local clone root
+├── README.md                   ← new developer entry point — setup instructions
+├── docs/
+│   ├── constitution/
+│   ├── operating-manual/
+│   └── git-collaboration/
+└── Tools/
+    ├── Constitution/
+    ├── templates/
+    ├── scripts/
+    │   ├── workspace-setup.sh      ← bash: creates folder scaffold, configures git aliases
+    │   ├── workspace-setup.ps1     ← PowerShell equivalent
+    │   ├── project-clone.sh        ← on-demand project clone helper
+    │   └── project-clone.ps1       ← PowerShell equivalent
+    └── skills/
+```
+
+The repo README and docs site are the authoritative setup guides. A developer who clones `DFW` and reads them should be able to complete workspace setup without asking anyone.
+
+---
+
+## Project Repos: On-Demand Only
+
+Projects are cloned individually, when needed. The workspace setup script creates the folder scaffold but does not clone any projects. A developer working on RORI does not need GitCollabPlaybook locally — and vice versa.
+
+**To clone a project:**
+```bash
+# From workspace root (fork model):
+./DFW/Tools/scripts/project-clone.sh git@github.com:yourname/proj-rori.git RORI \
+    --upstream git@github.com:team/proj-rori.git
+
+# Or clone central directly:
+./DFW/Tools/scripts/project-clone.sh git@github.com:team/proj-rori.git RORI
+```
+
+The `project-clone.sh` script:
+1. Verifies the workspace layout is standard (fails loudly if not)
+2. Clones the project repo into `02-Projects/{ProjectName}/`
+3. Configures remote names (`origin` = fork, `upstream` = central)
+4. Confirms the clone is ready
+
+Developers who fork central repos follow the standard fork model from [Branch Strategy](/git-collaboration/branch-strategy) — the project clone script supports both direct clone and fork-based clone.
+
+---
+
+## Journal Convention
+
+A personal journal is a developer artifact. It is not part of the shared workspace and is not set up by the workspace scripts.
+
+Each developer manages their journal independently:
+- **Option A**: Local only — lives on the developer's machine, never pushed
+- **Option B**: Personal private repo — developer's choice of hosting
+
+**Sharing journal insights with the team:** Insights, patterns, or rule candidates that have cross-team value are not shared by pushing the journal. They are formalized as a PR to the shared DFW repo — the journal is the source material, not the delivery mechanism. This keeps the team constitution deliberate and reviewed rather than a stream of personal notes.
+
+This approach improves on a fully shared journal model by adding an intentional human filter. Only insights worth formalizing reach the shared knowledge base, and they arrive via the same PR + review process as all other Tier 1 changes.
+
+---
+
+## Cross-Repo Path References
+
+All references from one repo to another use **relative paths from the workspace root**, assuming the standard layout.
+
+| Reference type | Convention | Example |
+|---------------|------------|---------|
+| From a project to DFW repo (DFW) | `../../DFW/Tools/` | `../../DFW/Tools/templates/HANDOFF-TEMPLATE.md` |
+| From DFW to a project | `../02-Projects/{Name}/` | `../02-Projects/RORI/CLAUDE.md` |
+
+**This only works if the standard layout is followed.** The workspace setup script enforces the layout. Developers who deviate from it own the broken paths.
+
+**Future:** When the environment matures, a `$DFW_META` environment variable (set by the workspace setup script) will replace relative paths, making references more robust. Until then, relative paths are the standard.
+
+---
+
+## Governance: Which Repo Owns What
+
+| Content | Lives in | Change process |
+|---------|----------|----------------|
+| Shared methodology, templates, scripts | `FrankTewksbury/DFW` | Tier 1 — PR + admin approval |
+| Project architecture decisions, CLAUDE.md, TODO | `project repos` | Tier 2 — PR + one +1 |
+| Personal config, local branch, developer preferences | Developer's fork `local` branch | Tier 3 — no approval |
+| Developer journal | Personal (local or private repo) | No process — personal artifact |
+
+The key governance rule for the multi-repo model: **changes that affect all projects go to the shared DFW repo via the Tier 1 process**. Changes discovered in a project journal or CLAUDE.md that have cross-project applicability must be promoted deliberately — they do not flow automatically.
+
+---
+
+## Setting Up a New Workspace: Overview
+
+The full setup process is documented in the DFW repo README and the DFW docs site. The high-level steps are:
+
+1. Create your workspace folder (name it whatever you like)
+2. Clone `FrankTewksbury/DFW` into it as `DFW`:
+   ```bash
+   git clone git@github.com:FrankTewksbury/DFW.git DFW
+   ```
+3. Run the workspace setup script:
+   ```bash
+   ./DFW/Tools/scripts/workspace-setup.sh
+   # or on Windows:
+   # .\DFW\Tools\scripts\workspace-setup.ps1
+   ```
+   This creates `02-Projects/` and configures DFW git aliases.
+4. Clone the projects you need:
+   ```bash
+   ./DFW/Tools/scripts/project-clone.sh git@github.com:team/proj-rori.git RORI
+   # Or with fork: add --upstream git@github.com:team/proj-rori.git
+   ```
+5. Read the onboarding guide: [Onboarding Guide](/git-collaboration/onboarding)
+
+---
+
+## What This Model Does Not Change
+
+The multi-repo workspace model operates at the workspace level — one level above individual project work. Everything inside a project repo is unchanged:
+
+- The 3-branch fork model (`main` / `local` / `feature/`) is per-project, unaffected
+- Commit conventions, PR conventions, session-end workflow — all per-project, unaffected
+- The three collaboration scenarios (A, B, C) — all per-project, unaffected
+- Tiered governance within a project — Tier 2 and Tier 3 are per-project, unaffected
+
+Only Tier 1 changes (shared methodology, templates, scripts) are affected — they now have a clear home in the shared DFW repo with an explicit PR process.
+
+---
+
+## Flywheel Connection
+
+The multi-repo model is P6 (Scope Boundaries Are Sacred) made structural. Previously the boundary between global meta and individual projects was a directory convention — easy to understand, easy to accidentally violate. Separate repos make it a hard boundary: a commit to the shared DFW repo cannot accidentally land in a project repo. The governance process for each scope tier is now enforced by the repo structure itself, not just by convention. The flywheel spins more reliably when its parts can't accidentally collide.
+
+---
+
+## Related Documents
+- [Branch Strategy](/git-collaboration/branch-strategy) — fork model within a project repo
+- [Onboarding Guide](/git-collaboration/onboarding) — full new developer setup walkthrough
+- [DFW Constitution](/constitution/principles) — P6: Scope Boundaries Are Sacred
+- `plans/_TODO.md` — setup script tasks and follow-up work

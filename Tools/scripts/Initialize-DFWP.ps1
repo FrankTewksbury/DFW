@@ -5,7 +5,9 @@
 .DESCRIPTION
     Creates the DFWP project directory structure, copies stub files from
     Tools/templates/dfwp/, copies the constitution and operating manual
-    from Tools/, generates personal-config, and initializes a local git repo.
+    from Tools/, generates personal-config, copies Git Collaboration assets
+    (.github/ templates, CONTRIBUTING.md, scripts/worktree-setup.sh), and
+    initializes a local git repo.
 
 .PARAMETER ProjectPath
     Absolute path where DFWP should be created. Defaults to X:\DFWP.
@@ -234,7 +236,35 @@ foreach ($dir in $emptyDirs) {
     }
 }
 
-# --- Step 7: Git init ---
+# --- Step 7: Copy git collaboration assets ---
+Write-Host '  Copying git collaboration assets...' -ForegroundColor Gray
+Write-Host '  Note: scripts/worktree-setup.sh is a Bash script. Use Git Bash on Windows.' -ForegroundColor DarkGray
+
+$gitTemplatesSrc = Join-Path $ToolsPath 'templates\github'
+$gitTemplatesDest = Join-Path $ProjectPath '.github'
+if (Test-Path $gitTemplatesSrc) {
+    if (-not (Test-Path $gitTemplatesDest)) {
+        New-Item -ItemType Directory -Path $gitTemplatesDest -Force | Out-Null
+    }
+    Copy-Item -Path "$gitTemplatesSrc\*" -Destination $gitTemplatesDest -Recurse -Force
+    Write-Host '  Copied: .github/ templates' -ForegroundColor Green
+}
+
+$gitContribSrc = Join-Path $ToolsPath 'templates\CONTRIBUTING-template.md'
+$gitContribDest = Join-Path $ProjectPath 'CONTRIBUTING.md'
+if ((Test-Path $gitContribSrc) -and (-not (Test-Path $gitContribDest) -or $Force)) {
+    Copy-Item -Path $gitContribSrc -Destination $gitContribDest -Force
+    Write-Host '  Copied: CONTRIBUTING.md' -ForegroundColor Green
+}
+
+$worktreeSrc = Join-Path $ToolsPath 'scripts\worktree-setup.sh'
+$worktreeDest = Join-Path $ProjectPath 'scripts\worktree-setup.sh'
+if ((Test-Path $worktreeSrc) -and (-not (Test-Path $worktreeDest) -or $Force)) {
+    Copy-Item -Path $worktreeSrc -Destination $worktreeDest -Force
+    Write-Host '  Copied: scripts/worktree-setup.sh' -ForegroundColor Green
+}
+
+# --- Step 8: Git init ---
 if (-not $SkipGit) {
     Write-Host '  Initializing git repository...' -ForegroundColor Gray
 

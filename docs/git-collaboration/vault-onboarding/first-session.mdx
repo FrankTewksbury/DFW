@@ -1,0 +1,505 @@
+---
+title: "Vault First Session"
+description: "A first-session walkthrough for teams using a shared Obsidian vault alongside DFW."
+icon: "play"
+---
+
+## What This Guide Covers
+
+Setup is done. This guide walks you through your first complete DFW session — from
+picking up an issue to closing the session cleanly in session CLOSE. Do this once and the
+rhythm becomes natural.
+
+**What you'll do:**
+- Start a session using the DFW START / WORK / CLOSE structure
+- Create a branch and worktree for an issue
+- Write your first DFW commit
+- Close the session in session CLOSE (COMPLETE, CONTINUABLE, or SCOPE CHANGED)
+- Write a journal entry in the vault
+
+**Time to complete**: 60–90 minutes for your first run-through.
+
+---
+
+## Session Structure (Quick Reference)
+
+Every DFW session follows the START → WORK → CLOSE structure:
+
+| Stage | What Happens | Primary Tool |
+|-------|-------------|-------------|
+| **START** | Load Governance Stack, read CLAUDE.md, understand the issue | Obsidian + Claude Desktop |
+| **WORK — Research & Planning** | Load context, decompose the issue, write acceptance criteria | Claude Desktop |
+| **WORK — Implementation** | Build, test, commit | Cursor / your editor |
+| **CLOSE** | Run DFW Doctor, classify outcome (COMPLETE / CONTINUABLE / SCOPE CHANGED), write journal and handoff | Obsidian + Claude Desktop |
+
+A session can spend time in one stage or move through all of them. The structure is a
+rhythm, not a rigid time box.
+
+> **New project only**: If this is the very first session on a brand-new project, add a
+> Scaffold step before START: create the DFW directory structure, `CLAUDE.md`, and
+> `plans/_TODO.md` using `Initialize-DFWP.ps1` or the manual scaffold steps.
+
+---
+
+## Before You Start: Session Open Checklist
+
+Run through this every session before writing a line of code. The first four items are the **Governance Stack** — these must be loaded in order before any AI agent starts work.
+
+```
+GOVERNANCE STACK — load in order:
+[ ] 1. DFW constitution docs      — check for recent amendments
+[ ] 2. [project]/CLAUDE.md                 — project behavioral rules
+        (code repo CLAUDE.md, not vault stub — see Section 3.2)
+[ ] 3. DFW docs/operating-manual/           — session lifecycle and procedures
+[ ] 4. Personal-Config overlays             — local branch additions (if any)
+
+Session context:
+[ ] 5. Open Obsidian — repo open at DFW/
+[ ] 6. Read your team's shared project index or dashboard note
+[ ] 7. Review prior DFW Doctor scorecard — any deferred items from last session?
+[ ] 8. Check any shared inbox or capture note your team uses
+[ ] 9. Have your issue number ready
+```
+
+This takes 5–10 minutes. The Governance Stack ensures AI agents work within the correct
+boundaries — skipping it means agents start from partial context, which causes drift.
+
+---
+
+## START: Research and Context Loading
+
+### 1.1 — Read the issue
+
+Open the project tracker and read the issue you're working on. You're looking for:
+- The acceptance criteria — what does "done" look like?
+- Any linked issues or dependencies
+- Comments from teammates that refine the scope
+
+If the acceptance criteria aren't clear, clarify them before touching any code.
+An issue with vague acceptance criteria is the most common source of scope creep.
+
+### 1.2 — Read the project CLAUDE.md
+
+```bash
+cat 02-Projects/RORI/CLAUDE.md
+```
+
+Or open it in Obsidian via whatever shared project note or dashboard your team uses.
+
+You're looking for rules, patterns, and decisions that are relevant to your issue.
+If a CLAUDE.md rule directly applies to your issue, note it — you'll reference it
+when planning in the WORK phase.
+
+### 1.3 — Sync your fork before branching
+
+```bash
+cd 02-Projects/RORI
+git dfwsync-start feature/42-auth-module rori-42-auth
+```
+
+This syncs your fork's `main` from central, creates the branch, and creates a
+worktree at `../rori-42-auth`. Do this before planning — you want to branch from
+the latest team state, not from stale main.
+
+**Branch naming:** `[type]/[issue-id]-[short-description]`  
+**Worktree naming:** `[project-abbreviation]-[issue-id]-[short-description]`
+
+Types: `feature/`, `fix/`, `research/`, `docs/`
+
+### 1.4 — Set up the worktree environment
+
+```bash
+cd ../rori-42-auth
+./scripts/worktree-setup.sh
+```
+
+This installs dependencies and sets up your local environment. If it fails, read
+the error — it's usually a missing tool or an `.env` value you need to fill in.
+
+> **If `worktree-setup.sh` is empty or doesn't exist** (common on new projects), you'll
+> need to install dependencies manually using the project's own README instructions.
+> Once you've confirmed the manual steps, open a PR to add them to `scripts/worktree-setup.sh`
+> so the next developer doesn't hit the same gap.
+
+---
+
+## WORK: Planning
+
+### 2.1 — Write your initialization commit
+
+Before planning, commit to mark the session boundary in the log. Use `--allow-empty`
+if you haven't changed any files yet:
+
+```bash
+git commit --allow-empty -m "feat(auth): initialize issue #42
+
+Starting Phase 1-2 research and planning.
+
+Session: S20260219_0900
+Issue: #42
+Phase: 1 - Research"
+```
+
+**The commit format matters:**
+- Subject: `[type](scope): short description` — imperative mood, max 72 chars
+- Blank line, then body (optional but useful)
+- Trailer block: `Session:`, `Issue:`, `Phase:` — required on every commit
+
+The full commit convention reference is at `/git-collaboration/commit-conventions`.
+
+### 2.2 — Decompose the issue
+
+With your issue, acceptance criteria, and relevant CLAUDE.md rules in front of you,
+break the work into implementation steps. Write them down — in a scratch note in
+Obsidian, in a comment on the issue, or in the body of your next commit. The format
+doesn't matter; the act of writing them does.
+
+Ask: **Can this be done in one session?** If no, split it into child issues now —
+before you start building, not after three sessions of scope creep.
+
+### 2.3 — Update your commit with the plan
+
+```bash
+git commit --allow-empty -m "feat(auth): planning phase complete for issue #42
+
+Plan:
+1. Add JWT signing utility (lib/auth/jwt.ts)
+2. Add token validation middleware (middleware/auth.ts)
+3. Wire middleware to protected routes (routes/api.ts)
+4. Write integration tests (tests/auth.test.ts)
+
+Acceptance criteria confirmed: user with valid JWT can reach /api/profile,
+user without JWT receives 401.
+
+Session: S20260219_0900
+Issue: #42
+Phase: 2 - Planning"
+```
+
+---
+
+## WORK: Implementation
+
+### 3.1 — Work in your worktree
+
+Your worktree is at `../rori-42-auth` (or whatever name you used with `dfwsync-start`).
+Open it in your editor:
+
+```bash
+code ../rori-42-auth    # VS Code
+cursor ../rori-42-auth  # Cursor
+```
+
+Work through your plan step by step. Commit logical units of progress — not time
+intervals, not file-by-file. A good commit represents a thing that works, not a
+thing that exists.
+
+```bash
+git add -A
+git commit -m "feat(auth): add JWT signing utility
+
+Implements HS256 signing with configurable expiry. Validates
+algorithm, secret presence, and payload shape before signing.
+
+Session: S20260219_0900
+Issue: #42
+Phase: 3 - Implementation"
+```
+
+### 3.2 — AI context: which CLAUDE.md to load
+
+When working with an AI assistant in your editor (Cursor, Claude Code), load the
+**code repo** `CLAUDE.md`, not the vault stub. The code repo CLAUDE.md has the
+architecture rules, patterns, and known gotchas that matter during implementation.
+
+In Cursor: add `CLAUDE.md` to the context window at session start.  
+In Claude Code: it picks up `CLAUDE.md` automatically from the repo root if present.
+
+If the project's code repo doesn't have a `CLAUDE.md` yet, write one as your first
+contribution — even a skeleton is better than nothing.
+
+> **MCP — the context bridge between tools**  
+> In a team workflow, you'll often switch between Claude Desktop (planning), Cursor
+> (implementation), and Claude Code (autonomous execution) within the same issue.
+> Each tool starts from zero unless context is explicitly bridged. MCP (Model Context
+> Protocol) is the mechanism that connects them: it lets AI tools query the Obsidian
+> vault, read project files, and access structured context without manual copy-paste.
+> Setting up MCP for your project is a Scaffold task (new projects only) — once configured,
+> every tool in the chain reads the same context automatically. See
+> `DFW/docs/operating-manual/tools-and-integrations` for the full MCP setup guide for each tool.
+
+### 3.3 — Mid-session save point (wip commit)
+
+If you need to stop mid-session and come back later — or switch context — write a
+`wip:` commit before stepping away:
+
+```bash
+git add -A
+git commit -m "wip: mid-session save on issue #42
+
+JWT utility complete and tested. Middleware stub written — not yet
+wired to routes. Pausing here.
+
+Next: Wire middleware to auth routes (routes/api.ts), then integration test.
+
+Session: S20260219_1100
+Issue: #42
+State: JWT signing done, middleware incomplete"
+git push origin feature/42-auth-module
+```
+
+The `wip:` commit body is the context handoff to your future self (or a teammate).
+Be specific about state and next steps — vague notes lose their value within 24 hours.
+
+### 3.4 — AI assistance pattern
+
+When working with an AI assistant (Claude Desktop, Cursor, Claude Code) during
+implementation, follow these habits:
+
+- Load CLAUDE.md into context at the start of every AI conversation on this project
+- When the AI generates code, check it against relevant CLAUDE.md rules before
+  committing — catching conflicts at write time is faster than in PR review
+- If the AI and CLAUDE.md conflict, CLAUDE.md wins. Update the AI's context, not
+  the rule.
+- If the AI produces something genuinely better than the current rule, note it
+  for session CLOSE — it may be a CLAUDE.md amendment candidate
+
+---
+
+## session CLOSE: Validate and Close
+
+session CLOSE is the most important stage. It's where context is preserved or lost.
+
+### 5.1 — Verify acceptance criteria
+
+Before declaring COMPLETE, verify the acceptance criteria from the issue. Not
+"does it roughly work" — does it meet every criterion as stated?
+
+If the code isn't fully working but you've made real progress, that's CONTINUABLE,
+not COMPLETE. Be honest about this — a premature COMPLETE that fails in PR review
+is more expensive than a clean CONTINUABLE handoff.
+
+### 5.2 — Classify the outcome
+
+Answer: **Is this issue done?**
+
+| Outcome | Meaning | When to use |
+|---------|---------|------------|
+| **COMPLETE** | All acceptance criteria met, ready for PR | The work is done |
+| **CONTINUABLE** | Good progress, scope unchanged, pick up next session | More work remains, no surprises |
+| **SCOPE CHANGED** | Issue was larger than scoped | Discovered work that wasn't planned |
+| **ABANDONED** | Issue dropped — reprioritised or irrelevant | Decision made to not complete |
+
+### 5.3 — Take the right git action
+
+**COMPLETE:**
+```bash
+# 1. Squash wip commits — clean history for reviewers
+git rebase -i main
+# Change 'pick' to 's' on all wip: commits
+# Transfer their context notes to the PR description's Session History section
+
+# 2. Push and open PR
+git push origin feature/42-auth-module
+# Open PR on GitHub — PR description includes:
+#   - What this does (summary)
+#   - Session history (transferred from wip commits)
+#   - CLAUDE.md rule references if relevant
+
+# 3. Remove worktree (after PR is open, not necessarily merged)
+cd 02-Projects/RORI
+git worktree remove ../rori-42-auth
+```
+
+**CONTINUABLE:**
+```bash
+# Write session-end wip commit
+git add -A
+git commit -m "wip: end of session S20260219 on issue #42
+
+State: JWT utility and middleware complete. Not yet wired to routes.
+Next session: Wire middleware (routes/api.ts line ~45), then integration test.
+Blocker: None.
+
+Session: S20260219_1400
+Issue: #42
+Phase: 3 - Implementation"
+
+git push origin feature/42-auth-module
+# Leave worktree in place — it's your save point
+```
+
+**SCOPE CHANGED:**
+```bash
+# Commit current state with decomposition rationale
+git add -A
+git commit -m "wip: end of session S20260219 — scope decomposed
+
+Discovered token revocation requires a separate mechanism not in
+original scope. Decomposing into child issues.
+
+Original: #42 (auth module)
+Child issues to create: #49 (token revocation), #50 (refresh rotation)
+
+Session: S20260219_1400
+Issue: #42"
+
+git push origin feature/42-auth-module
+# Create child issues in the tracker
+```
+
+**ABANDONED:**
+```bash
+# Always write a closing commit — never silently delete
+git add -A
+git commit -m "wip: abandoning issue #42 — deprioritised
+
+Rationale: #42 (auth module) superseded by auth service adoption
+decision. Closing as won't-fix.
+
+Session: S20260219_1400
+Issue: #42"
+
+git push origin feature/42-auth-module
+# Close the issue as won't-fix in the tracker, referencing this branch
+# Leave branch on fork for one sprint cycle before deleting
+```
+
+### 5.4 — Run DFW Doctor
+
+Before writing the journal, run the DFW Doctor checklist:
+
+```
+the current DFW Doctor checklist/process
+```
+
+Four checks:
+- **Project Health**: CLAUDE.md current? PROJECT_OVERVIEW accurate? plans/_TODO.md updated?
+- **Session Health**: Journal created? Handoff created if switching tools?
+- **Governance Health**: Constitution respected? No deletions without permission?
+- **Retrospective Health**: Retro signals filled? Rule candidates identified?
+
+Copy the scorecard result (PASS / FAIL + any deferred items) into your journal close.
+A FAIL is not a blocker — it's a flag. Deferred items go in the journal and get
+picked up at next session's open checklist.
+
+### 5.5 — Write your journal entry
+
+Open Obsidian. Create a new journal entry using the template:
+
+1. In Obsidian, go to `journal/`
+2. Create a new file: `2026-02-19_rori-auth-module.md`
+3. Use the daily journal template (`the current team journal template` → insert via Templater or copy manually)
+
+Fill in at minimum:
+- **What you did** — which issues, which stages, what decisions
+- **What you learned** — anything surprising, anything that confirmed an assumption
+- **Retrospective signals** — patterns worth extracting, rule candidates, cross-project ideas
+- **DFW Doctor scorecard** — copy the result from the DFW Doctor step above
+
+The journal is on your `local` branch — it's yours, not the team's. What the team
+gets is what you promote from it via PR.
+
+### 5.6 — Check inbox and ideas
+
+Before closing the session, sweep your team's shared inbox or capture note if one exists:
+
+- Route any captures that arrived during the session
+- Tag them (`#route/project`, `#route/meta`, `#route/ideas`)
+- Clear the inbox — leave it empty for next session
+
+---
+
+## Promoting Learnings to the Team
+
+When you discover something in your session that should benefit the whole team,
+here's how it flows:
+
+**Project-level learning** (applies to one project):  
+Add it to the project's `CLAUDE.md` via PR. One-reviewer +1 required.
+
+**Cross-project learning** (applies to all projects):  
+Add it to `DFW/Tools/skills/` via PR. Admin approval required.
+
+**Constitutional change** (a principle needs updating):  
+Draft a proposal in your journal first, then bring it to the team discussion
+before opening a PR.
+
+Don't skip the PR process for team knowledge. The PR is the human filter that
+prevents personal notes from accidentally becoming team rules. See
+`/constitution/scope-rules` for the full governance contract.
+
+---
+
+## Resuming a Continuable Branch
+
+When you come back to a CONTINUABLE branch in a future session:
+
+```bash
+cd 02-Projects/RORI
+git dfwsync-resume feature/42-auth-module
+```
+
+Then immediately write a resume commit:
+
+```bash
+cd ../rori-42-auth
+git commit --allow-empty -m "chore: resume session S20260220 on issue #42
+
+Resuming from: S20260219
+State at resume: JWT utility and middleware complete, routes not yet wired.
+This session: Wire middleware, write integration test, target COMPLETE.
+
+Session: S20260220_0900
+Issue: #42
+Phase: 3 - Implementation"
+```
+
+The resume commit is always required — even when resuming your own work. It marks
+the session boundary in the log.
+
+---
+
+## Reference: DFW Git Aliases
+
+| Alias | When | What it does |
+|-------|------|-------------|
+| `git dfwsync-start <branch> <worktree>` | New issue | Sync fork main → create branch + worktree |
+| `git dfwsync-complete <branch>` | After PR merges | Sync fork main → sync local → delete branch |
+| `git dfwsync-resume <branch>` | Resuming continuable | Sync fork main → rebase branch |
+
+Run any alias with no arguments to see usage.
+
+---
+
+## Reference: Key Vault Locations
+
+| Location | What it is |
+|----------|-----------|
+| `CLAUDE.md` (vault root) | AI context — scope rules, routing, active projects |
+| `docs/constitution/` | DFW first principles |
+| `docs/constitution/scope-rules` | What lives in shared DFW docs vs. project repos |
+| `Tools/skills/` | Cross-project patterns |
+| `Tools/templates/` | Shared templates and scaffold assets |
+| Shared project dashboard or index | Team project status |
+| `journal/` | Your session journals (on `local` branch) |
+| Shared inbox or capture note | Optional quick-capture area to sweep at session close |
+
+---
+
+## What to Do After Your First Session
+
+- **If it went smoothly**: You're in the rhythm. The second session is easier.
+- **If something in the tooling broke**: Open an issue on `FrankTewksbury/DFW`. The setup docs
+  improve from real failures.
+- **If something in the process felt wrong**: Note it in your journal's retrospective
+  signals section. That's exactly the input the methodology needs.
+
+---
+
+**Related Documents**
+- [Setup Guide](/git-collaboration/vault-onboarding/setup-guide) — workspace and vault setup (prerequisite)
+- [Scope Rules](/constitution/scope-rules) — what lives in vault vs. project repos
+- [Branch Strategy](/git-collaboration/branch-strategy) — fork model and full branch lifecycle
+- [Commit Conventions](/git-collaboration/commit-conventions) — full commit format reference
+- [Session-End Workflow](/git-collaboration/session-end-workflow) — session CLOSE decision tree in full

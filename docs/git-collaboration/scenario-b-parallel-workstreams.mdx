@@ -1,0 +1,269 @@
+---
+title: "Scenario B: Parallel Workstreams"
+description: "How multiple developers work in parallel on the same project using explicit git coordination."
+icon: "split"
+---
+
+## What This Scenario Covers
+
+Scenario B describes a DFW team where multiple developers work on **different issues within the same project** in parallel. This is the most technically demanding scenario — developers share a codebase, diverge as they work, and must converge cleanly via PRs without blocking each other or producing merge conflicts.
+
+The central challenges are: staying current with each other's merged work, handling the case where one developer needs something the other hasn't merged yet, and maintaining velocity without constant coordination overhead.
+
+---
+
+## The Setup
+
+One central repository. Two developers, each with their own fork. Both working on different issues simultaneously.
+
+```
+Central: github.com/team/rori (protected main)
+
+devA's fork: github.com/devA/rori
+  └── feature/42-auth-module       ← devA's active issue
+
+devB's fork: github.com/devB/rori
+  └── feature/43-user-profile      ← devB's active issue
+```
+
+Both feature branches started from the same `main` commit. As each developer commits and the other's PR merges, their branches diverge. The fork sync workflow (auto-sync on session start) keeps this divergence minimal.
+
+---
+
+## The Standard Pattern: Independent Parallel Issues
+
+Most parallel workstream work is simply two developers working independently on non-overlapping issues. The coordination overhead is low:
+
+**Session start**: Each developer runs `git dfwsync-start` — this syncs their fork `main` from central before branching. If the other developer's PR merged overnight, this pull captures it immediately. Feature branches always start from the freshest `main`.
+
+**During implementation**: No coordination needed if issues don't touch the same files. Developers work independently through Phases 2–5. Commit messages carry session and issue IDs, so either developer can read the other's recent commits and understand what's happening.
+
+**When PRs merge**: The first PR to merge has no complications. The second PR may have a conflict if both touched the same files. GitHub will flag this at PR time — the developer rebases their branch onto the updated `main` and resolves conflicts before the PR can merge.
+
+```bash
+# devA's PR merged first. devB gets a conflict notice on their PR.
+# devB resolves:
+git fetch upstream
+git checkout main && git merge upstream/main --ff-only
+git checkout feature/43-user-profile
+git rebase main              # replays devB's commits onto updated main
+# resolve conflicts if any
+git push origin feature/43-user-profile --force-with-lease
+# PR is now conflict-free
+```
+
+This is normal GitHub Flow — nothing DFW-specific. The fork sync discipline is what keeps conflicts small: frequent syncs mean small divergence means simple conflicts.
+
+---
+
+## Session Start: The Critical Habit
+
+The single most important habit in Scenario B is the session-start sync. Without it, developers build on stale state and accumulate divergence that becomes expensive to resolve.
+
+```bash
+# Every session start, before any work:
+git dfwsync-start feature/42-auth-module project-rori-42-auth
+
+# This:
+# 1. Fetches all upstream changes
+# 2. Fast-forwards fork main to central main
+# 3. Creates or checks out the feature branch
+# 4. The feature branch is now fresh-started from the latest merged state
+```
+
+On an active project with daily merges, skipping this step for two sessions means your branch is 2 sessions behind. Small branches = small conflicts. The sync is 10 seconds. It is never worth skipping.
+
+---
+
+## The Hard Case: Dependency Branches
+
+Sometimes the independent parallel pattern breaks down: Developer B needs something Developer A is building, and A's PR hasn't merged yet.
+
+**First question**: Can B start with a stub or mock?
+
+If B is building user profiles and needs the auth interface that A is implementing, B can often create a `IAuthService` interface stub — implement the profile feature against the stub, and replace the stub with the real implementation after A's PR merges. This avoids the dependency entirely.
+
+**Only if stubbing is impractical** (the dependency is too complex to mock, or the interface is still changing and would require extensive rework): use a dependency branch.
+
+### Setting Up a Dependency Branch
+
+**Developer A — share the branch**:
+```bash
+# A's branch must be pushed and the interface must be stable enough to build on
+git push origin feature/42-auth-module
+
+# A notifies B with:
+# - Fork URL: github.com/devA/rori
+# - Branch: feature/42-auth-module
+# - What's stable: the IAuthService interface (auth.interface.ts)
+# - What's still changing: the token refresh implementation
+# - Estimated merge: this session or next
+```
+
+**Developer B — set up the dependency branch**:
+```bash
+# Add A's fork as a named remote (one-time setup per collaborator)
+git remote add devA git@github.com:devA/rori.git
+git fetch devA
+
+# Create B's branch from A's branch (not from main)
+git worktree add ../rori-43-profile -b feature/43-user-profile devA/feature/42-auth-module
+cd ../rori-43-profile
+./scripts/worktree-setup.sh
+
+# First commit must document the dependency
+git commit --allow-empty -m "feat(profile): initialize user profile module
+
+Session: S20260217
+Issue: #43
+Phase: 2 - Planning
+Dependency: Branched from devA/feature/42-auth-module (issue #42)
+Note: Will rebase onto central main after #42 merges"
+```
+
+B now has a branch that contains A's work plus B's additions on top of it. B can use A's auth interface immediately.
+
+### Staying in Sync While A's Branch Evolves
+
+If A makes changes to the interface while B is building on it, B needs to incorporate those changes:
+
+```bash
+# B pulls A's latest changes into their dependency branch
+git fetch devA
+git rebase devA/feature/42-auth-module
+# B's commits are replayed on top of A's latest
+```
+
+A should notify B via team channel whenever the interface changes significantly — this is the critical communication point. B building on a stale interface version leads to a painful rebase later.
+
+### After A's PR Merges: The Rebase Protocol
+
+When A's PR merges to central `main`, B must transition their branch from "based on A's fork branch" to "based on central main":
+
+```bash
+# Step 1: Sync fork main — A's work is now in main
+git fetch upstream
+git checkout main && git merge upstream/main --ff-only && git push origin main
+
+# Step 2: Rebase B's branch onto updated main
+cd ../rori-43-profile  # or: git checkout feature/43-user-profile
+git rebase main
+# B's commits replay on top of main (which now includes A's work)
+# Conflicts are usually minimal — B was already building on A's code
+
+# Step 3: Resolve any conflicts
+git status
+# edit conflicting files
+git add <resolved>
+git rebase --continue
+
+# Step 4: Force-push the rebased branch
+git push origin feature/43-user-profile --force-with-lease
+
+# Step 5: Write a rebase checkpoint commit — permanent marker
+git commit --allow-empty -m "chore: rebase onto main after #42 merged
+
+Session: S20260218
+Issue: #43
+Rebased onto central main — devA's auth module (issue #42) is now in main
+Interface changes resolved: updated profile.service.ts to use new JWT payload shape
+Branch is now independent of devA/feature/42-auth-module"
+```
+
+B's branch is now a normal independent feature branch. The dependency is resolved. B can continue to PR as usual.
+
+### Three-Level Dependency Chains: A Design Smell
+
+If C depends on B which depends on A — stop. This is a signal that the design has a problem, not that a three-level dependency chain is the right tool. Before proceeding, ask:
+
+- Can C mock B's interface?
+- Should B and C be the same issue?
+- Is the coupling between B and C revealing an architecture concern?
+
+The playbook does not support three-level dependency chains as a workflow. The team should redesign before building one.
+
+---
+
+## Communication Norms for Scenario B
+
+Parallel workstreams require more active communication than solo work. These are the expected communication touchpoints:
+
+| Event | Who | To | Channel |
+|-------|----|-----|---------|
+| Opening a new feature branch | Either dev | Team | Team channel — "starting #42 auth module today" |
+| PR ready for review | Author | Reviewer | GitHub + team channel ping |
+| PR merges | Automatic | Watch notifications | Also team channel if others may be affected |
+| Interface contract changes (dependency branch situation) | A | B | Direct — urgent |
+| Approaching stale branch threshold (session 3+) | Author | Team | Team channel — brief status |
+| Discovered something that affects the other dev's work | Either | Other | Direct |
+
+The team channel is not for code discussion (that lives in PR comments) — it is for **state broadcasting**: who is working on what, when it's ready for review, when it merges.
+
+---
+
+## PR Review in Scenario B
+
+In a two-developer team, each developer reviews the other's PRs. This is the default and works well — the reviewer is building on the same codebase and has natural context.
+
+**Review timing**: Aim to review within 48 hours. On an active project, unreviewed PRs are a velocity bottleneck — they hold up the next rebase cycle for anyone dependent on that change.
+
+**When to request a dependency-aware review**: If B's PR depends on A's code, A is the natural reviewer for B's PR — they understand the interface and its intent better than anyone. A's review is especially valuable for catching misuse of their own interface.
+
+---
+
+## Concrete Example: devA and devB on rori
+
+**Day 1 — both start work**
+
+devA: `git dfwsync-start feature/42-auth-module project-rori-42-auth`  
+devB: `git dfwsync-start feature/43-user-profile project-rori-43-profile`
+
+Both branches start from the same `main` commit — zero divergence.
+
+**Day 2 — devA opens PR**
+
+devA completes auth in one session. Squashes wip commits, opens PR #42. Session History shows three sessions of work and the RS256 decision.
+
+devB reviews: "+1, Session History explains the interface design choices clearly. Will adopt the same token payload shape in #43."
+
+**Day 3 — PR #42 merges. devB syncs.**
+
+```bash
+# devB's session start
+git dfwsync-start feature/43-user-profile project-rori-43-profile
+# This captures the merged #42 — devB's branch now starts from main including auth
+
+# devB writes resume commit
+git commit --allow-empty -m "chore: resume session S20260219 on issue #43
+
+Resuming from: S20260217
+Current state: Profile CRUD complete. Now integrating with auth module (now in main).
+Next: Replace auth stub with real IAuthService — should be straightforward rebase.
+
+Session: S20260219_0900
+Issue: #43
+Phase: 1 - Research"
+```
+
+devB's branch was started independently, so this is a clean rebase onto the updated main rather than a dependency branch situation. Integration is straightforward — the auth module is in main and fully available.
+
+**Day 4 — devB opens PR #43**
+
+PR Session History includes a note: "Day 3: auth module merged to main — replaced stub implementation with real IAuthService. Cleaner than expected — stub interface matched perfectly."
+
+PR merges. Both issues closed.
+
+---
+
+## Flywheel Connection
+
+Scenario B is where the DFW principle P3 (Explicit Over Implicit) pays off most visibly. Every commit that carries a session ID and issue reference, every wip commit that documents current state, every dependency branch that documents its parent — all of these make the parallel work traceable. When two developers are building simultaneously, the implicit coordination cost (who's doing what, where is it, is it safe to merge) is shifted into explicit artifacts that answer those questions without a meeting. The flywheel compounds because coordination overhead goes down as discipline goes up.
+
+---
+
+## Related Documents
+- [Branch Strategy](/git-collaboration/branch-strategy) — fork model and parallel worktree setup
+- [Session-End Workflow](/git-collaboration/session-end-workflow) — PATH B and PATH C apply frequently in Scenario B
+- [PR Conventions](/git-collaboration/pr-conventions) — review norms and Session History
+- `DFW/Tools/templates/PROTOCOL-cross-dev-handoff.md` — dependency branch handoff fields
+- Dependency Branches Research — full protocol detail

@@ -38,7 +38,7 @@
 .EXAMPLE
     .\Sync-CardBoardConfig.ps1
 .EXAMPLE
-    .\Sync-CardBoardConfig.ps1 -VaultPath "C:\DATA\dfw-hub" -DryRun
+    .\Sync-CardBoardConfig.ps1 -VaultPath "C:\DATA\DFW" -DryRun
 .EXAMPLE
     .\Sync-CardBoardConfig.ps1 -ExcludeProjects @("Tools") -Force
 .NOTES

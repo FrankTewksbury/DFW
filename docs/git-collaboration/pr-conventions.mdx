@@ -1,0 +1,212 @@
+---
+title: "PR Conventions"
+description: "Pull request structure, review expectations, and session history guidance."
+icon: "git-pull-request"
+---
+
+## Purpose
+
+A pull request in DFW is more than a code review mechanism — it is a **permanent learning artifact**. The PR description is where `wip` commit context is preserved after squashing, where the session history of an issue lives, and where future developers will look when they need to understand why something was built the way it was.
+
+This document defines the PR template, review norms, and the conventions that turn a PR into a first-class DFW artifact.
+
+---
+
+## The PR Template
+
+Every PR to central `main` uses this template. It is pre-populated from DFW artifacts that already exist — the developer rarely needs to write from scratch.
+
+```markdown
+## Summary
+[What this PR does — 2-3 sentences. What problem does it solve?]
+
+## Issue
+Closes #[N]
+
+## Session History
+<!-- Transfer notes from squashed wip commits here — this is where that context lives permanently -->
+<!-- Format: SessionID: [what happened, decisions made, surprises encountered] -->
+- S20260215_1000: Initial planning. Decided on RS256 over HS256 — public key
+  can be distributed to third-party consumers without exposing signing capability.
+- S20260216_0900: Validation middleware complete. Hit clock skew edge case with
+  external tokens — added 30s leeway to expiry check.
+- S20260217_1400: Refresh token rotation and full test suite complete.
+
+## Acceptance Criteria
+<!-- These come directly from the Phase 2 planning commit or issue description -->
+- [x] JWT tokens issued on login with RS256 signing
+- [x] Refresh tokens stored as httpOnly cookies
+- [x] Expired or invalid tokens return 401 with structured error body
+- [x] Token rotation invalidates previous refresh token family
+
+## Testing
+- [x] Unit tests: `npm test -- --grep "auth"`
+- [x] Manual: login → access protected route → refresh → logout
+- [ ] Load test: deferred to issue #53
+
+## Retrospective Notes
+<!-- Key learnings, surprises, or mid-course corrections — for reviewers and future developers -->
+<!-- This is the human layer of the commit history — what the code can't tell you -->
+The clock skew fix (session 2) was the only significant deviation from plan.
+Token family invalidation ended up simpler than anticipated — a single Redis
+set per user rather than a tree structure.
+
+## New Issues Generated
+<!-- Discovered during implementation — carry forward -->
+- #47: Rate limiting on auth endpoints (discovered: token endpoint has no throttle)
+- #48: Password reset flow (dependency on this auth module now clear)
+```
+
+### Where Each Section Comes From
+
+| Section | Source | When Populated |
+|---------|--------|---------------|
+| Summary | Written fresh | When opening PR |
+| Issue | Issue tracker | Automatic — just fill in number |
+| Session History | `wip` commit messages (copy before squashing) | Before squashing — transfer then rebase |
+| Acceptance Criteria | Planning commit or issue description | Copy from existing artifacts |
+| Testing | session CLOSE validation | When opening PR |
+| Retrospective Notes | session CLOSE retrospective | When opening PR |
+| New Issues Generated | session CLOSE retrospective | When opening PR |
+
+**The important workflow**: Before running `git rebase -i main` to squash `wip` commits, first copy the `State`/`Next`/context notes from each `wip` commit message into the Session History section. Then squash. This is the only moment those notes exist in both places simultaneously.
+
+```bash
+# Step 1: Read wip commit messages (copy their context to PR draft)
+git log --oneline feature/42-auth-module ^main
+git show <wip-commit-hash>   # for each wip commit
+
+# Step 2: Paste notes into PR description draft (GitHub, local file, etc.)
+
+# Step 3: Now squash
+git rebase -i main
+```
+
+---
+
+## PR Title
+
+```
+#[issue-id]: [Short description matching branch description]
+```
+
+Examples:
+```
+#42: Add JWT authentication module
+#51: Fix null customer ID on checkout
+#55: Update auth API endpoint documentation
+```
+
+The issue number first makes PRs scannable in the GitHub PR list.
+
+---
+
+## PR Size
+
+There is no hard line-count limit. DFW constrains PR size through issue sizing (prefer 1 session) and the session CLOSE SCOPE CHANGED decomposition path.
+
+The right question is not "how many lines?" but "can a reviewer understand this change in one sitting?" If the answer is no, the issue probably needed decomposing before the branch was opened.
+
+**Signal that decomposition was needed** (not a rule, a prompt for reflection):
+- The reviewer needs more than 30 minutes to understand the change
+- The PR touches more than 3 unrelated areas of the codebase
+- Acceptance criteria cover fundamentally different concerns
+
+---
+
+## Review Norms
+
+### Who Reviews
+
+| PR Type | Reviewer |
+|---------|---------|
+| Tier 2 (project code, docs, team CLAUDE.md) | Any one team member |
+| Tier 1 (anything in `DFW/Tools/`) | All admins (CODEOWNERS enforces this automatically) |
+
+Self-review is acceptable only for hotfixes on solo projects where no teammate is available. Document self-review in the PR description.
+
+### Reviewer Responsibilities
+
+A reviewer is responsible for:
+- Verifying the acceptance criteria checklist is accurate
+- Catching logical errors, not just style
+- Reading the Session History section — not as context noise, but as part of understanding the change
+- Leaving actionable comments ("change X to Y because Z") rather than vague ones ("this feels wrong")
+
+A reviewer is **not** responsible for:
+- Rewriting the implementation
+- Approving things they don't understand (ask questions instead)
+- Approving PRs under time pressure — if you can't review it properly, say so
+
+### Review Timeline
+
+- **Normal PRs**: review within 48 hours of opening
+- **Hotfix PRs**: review within hours — PR description marks urgency explicitly
+- **Stale PRs**: if no review after 48 hours, author pings the team
+
+### Giving Feedback
+
+Three levels of comment, used explicitly so authors know what's required:
+
+```
+[REQUIRED]: This must change before I'll approve.
+[SUGGESTION]: I'd recommend this, but it's your call.
+[QUESTION]: I don't understand this — can you explain?
+```
+
+Using these labels removes ambiguity about whether a comment blocks approval. A PR with only `[SUGGESTION]` and `[QUESTION]` comments can merge as soon as questions are answered. A PR with a `[REQUIRED]` comment cannot.
+
+### Responding to Feedback
+
+- Address every `[REQUIRED]` comment — commit the change or explain in a reply why you disagree
+- Respond to every `[QUESTION]` — if the answer belongs in the code (a comment or clearer naming), put it there
+- `[SUGGESTION]` items are resolved at the author's discretion — a simple "acknowledged, keeping as-is" is sufficient
+
+### Approving and Merging
+
+Once all `[REQUIRED]` items are resolved and questions answered:
+
+```bash
+# On GitHub: Approve the PR
+# Then merge — the author or reviewer can merge
+# Merge strategy: squash merge is acceptable, merge commit is acceptable
+# Rebase merge: avoid (rewrites PR author's commits — disorienting for history readers)
+```
+
+After merging:
+```bash
+# Author runs:
+git dfwsync-complete feature/42-auth-module
+# Syncs fork main, syncs local, deletes feature branch
+```
+
+---
+
+## The Session History Section: Why It Matters
+
+Session History is the section that makes a DFW PR different from a conventional PR. It is not a changelog — it is the **intellectual history of how the issue was solved**.
+
+A reviewer reading Session History before reviewing code understands:
+- Why certain decisions were made that might look odd without context
+- What alternatives were tried and abandoned
+- What surprised the developer during implementation
+
+A future developer reading Session History six months later understands:
+- Why the code is structured the way it is
+- What constraints were present at implementation time
+- What the known edge cases were when the code was written
+
+This is the compounding that makes DFW more than just a workflow. The Session History section is where `wip` commit context — which is written in the flow of implementation, when context is freshest — gets permanently attached to the artifact it describes. It survives squashing. It survives branch deletion. It lives in the PR forever.
+
+---
+
+## Flywheel Connection
+
+The PR is the DFW team's most durable learning artifact. Issues close. Branches delete. Sessions end. But PRs accumulate — and with them, the Session History sections accumulate. A team that consistently fills Session History creates a searchable record of every significant decision, every surprise, every course correction that was ever made on the project. Six months in, that record is more valuable than the code itself for understanding the codebase. That's the flywheel at full speed.
+
+---
+
+## Related Documents
+- [Commit Conventions](/git-collaboration/commit-conventions) — `wip` commit format that populates Session History
+- [Session-End Workflow](/git-collaboration/session-end-workflow) — PATH A (COMPLETE) produces the PR
+- [Branch Strategy](/git-collaboration/branch-strategy) — governance tiers that determine reviewer requirements

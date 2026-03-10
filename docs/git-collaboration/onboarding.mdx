@@ -1,0 +1,497 @@
+---
+title: "Onboarding"
+description: "End-to-end setup and first-session guidance for teams adopting DFW git collaboration patterns."
+icon: "rocket"
+---
+
+## What This Guide Is
+
+This is a walk-through, not a reference. It takes you from a fresh machine to your first
+committed session in a DFW project. Once you've done it once, the reference documents
+in this repo are the authoritative source — this guide's job is to make the first time
+not confusing.
+
+**Time to complete**: 30–45 minutes, depending on dependency install speed.
+
+---
+
+## Before You Start
+
+You need:
+
+- Git 2.5 or later — run `git --version` to check. Upgrade at https://git-scm.com/downloads if needed.
+- SSH configured for GitHub (or your team's git host) — run `ssh -T git@github.com` to verify.
+- Bash (Mac/Linux) or PowerShell 5.1+ (Windows).
+- The URL of your team's `DFW repo` repo — ask your team lead if you don't have it.
+- The URL of the project repo you're joining — fork it on GitHub before continuing.
+
+---
+
+## Part 1: Set Up Your Workspace
+
+### 1.1 — Create your workspace folder
+
+Pick a name. The internals are standardized; the outer folder name is yours.
+
+```bash
+mkdir my-dfw-workspace
+cd my-dfw-workspace
+```
+
+### 1.2 — Clone DFW repo as DFW
+
+**DFW repo** is the GitHub repo; **DFW** is the local folder name (required for workspace scripts). Clone DFW repo first, always into a folder named `DFW`:
+
+```bash
+git clone git@github.com:FrankTewksbury/DFW.git DFW
+```
+
+### 1.3 — Run the workspace setup script
+
+**Mac / Linux:**
+```bash
+cd DFW
+./Tools/scripts/workspace-setup.sh
+```
+
+**Windows (PowerShell):**
+```powershell
+cd DFW
+.\Tools\scripts\workspace-setup.ps1
+```
+
+If PowerShell blocks the script:
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned
+```
+
+The script does three things:
+1. Creates `02-Projects/` in your workspace root
+2. Installs three DFW git aliases into your global git config (`dfwsync-start`, `dfwsync-complete`, `dfwsync-resume`)
+3. Checks your git version
+
+You should see output confirming all three steps completed and a list of next steps.
+
+**Verify the aliases installed:**
+```bash
+git config --global --get alias.dfwsync-start
+# Should print the alias definition — not blank
+```
+
+### 1.4 — Verify your workspace layout
+
+Your workspace should now look like this:
+
+```
+my-dfw-workspace/
+├── DFW/                ← DFW repo clone
+└── 02-Projects/      ← empty for now — projects go here
+```
+
+If it doesn't look like this, re-read the error output from the setup script — it tells you exactly what went wrong.
+
+---
+
+## Part 2: Clone Your First Project
+
+### 2.1 — Fork the project repo on GitHub
+
+Before cloning, fork the central project repo to your own GitHub account. This is the DFW fork model: you work on your fork, you open PRs to central. If your team doesn't use forks (some small teams work directly on central), skip this step and ask your team lead.
+
+### 2.2 — Clone using the project-clone helper
+
+**Mac / Linux:**
+```bash
+# From your workspace root:
+./DFW/Tools/scripts/project-clone.sh git@github.com:yourname/proj-rori.git RORI \
+    --upstream git@github.com:team/proj-rori.git
+```
+
+**Windows (PowerShell):**
+```powershell
+# From your workspace root:
+.\DFW\Tools\scripts\project-clone.ps1 git@github.com:yourname/proj-rori.git RORI `
+    -Upstream git@github.com:team/proj-rori.git
+```
+
+Replace:
+- `yourname/proj-rori` with your fork's URL
+- `team/proj-rori` with the central repo URL
+- `RORI` with the project's folder name (ask your team lead what the convention is)
+
+The script will:
+1. Verify your workspace layout is standard
+2. Clone the repo into `02-Projects/RORI/`
+3. Set `origin` → your fork, `upstream` → central
+4. Check for a `local` branch (may not exist yet on a fresh project — that's OK)
+
+**Verify the remotes:**
+```bash
+cd 02-Projects/RORI
+git remote -v
+# origin    git@github.com:yourname/proj-rori.git (fetch)
+# origin    git@github.com:yourname/proj-rori.git (push)
+# upstream  git@github.com:team/proj-rori.git (fetch)
+# upstream  git@github.com:team/proj-rori.git (push)
+```
+
+### 2.3 — Create your local branch
+
+The `local` branch is your personal configuration layer — it stays in your fork and never merges to central.
+
+```bash
+git checkout -b local
+git push origin local
+```
+
+If `local` already existed (the script will have told you), skip this — it's already set up.
+
+### 2.4 — Read CLAUDE.md
+
+Before you write a single line of code, read the project's `CLAUDE.md`:
+
+```bash
+cat CLAUDE.md
+```
+
+This is the team's accumulated AI memory for the project: architecture decisions, known gotchas, patterns to follow, mistakes to avoid. Reading it takes 5 minutes and saves you from repeating solved problems. If it's a new project and `CLAUDE.md` is a blank template, you're one of the people who'll be filling it in.
+
+---
+
+## Part 3: Your First Session
+
+You have a workspace, a cloned project, and `CLAUDE.md` read. Now do actual work.
+
+### 3.1 — Find an issue to work on
+
+Pick an issue from the project tracker. Every branch in DFW maps to an issue — no branch without an issue. If you don't have access to the tracker yet, ask your team lead.
+
+Note the issue number. You'll use it throughout.
+
+### 3.2 — Start a new session with dfwsync-start
+
+```bash
+# From inside your project directory:
+cd 02-Projects/RORI
+
+git dfwsync-start feature/42-auth-module rori-42-auth
+#                 ^-- branch name         ^-- worktree directory name
+```
+
+**Branch naming convention:** `[type]/[issue-id]-[short-description]`
+Types: `feature/`, `fix/`, `docs/`, `research/`
+
+**Worktree naming convention:** `[project]-[issue-id]-[short-description]`
+
+This command:
+1. Fetches from upstream (central repo)
+2. Fast-forwards your fork's `main` to central's `main`
+3. Pushes the updated `main` to your fork
+4. Creates a new branch and worktree at `../rori-42-auth`
+
+You should now have a new directory sitting alongside your project:
+
+```
+my-dfw-workspace/
+├── DFW/
+└── 02-Projects/
+    ├── RORI/             ← main repo directory (use for git admin)
+    └── rori-42-auth/     ← your worktree (do your work here)
+```
+
+### 3.3 — Set up the worktree environment
+
+```bash
+cd ../rori-42-auth
+./scripts/worktree-setup.sh
+```
+
+This installs dependencies and sets up your `.env.local`. The script is project-specific — it tells you what it's doing. If it fails, read the error message and check with a teammate.
+
+**Windows:** `worktree-setup.sh` is a Bash script. Run it from Git Bash (included with Git for Windows). It will not run in PowerShell.
+
+### 3.4 — Write your first commit
+
+Open the worktree directory in your editor and write a commit immediately — even before making any code changes. This creates the session boundary in the commit log.
+
+```bash
+git add -A
+git commit -m "feat(auth): initialize issue #42
+
+Session: S20260218_0900
+Issue: #42
+Phase: 1 - Research"
+```
+
+If you're still in the START or early WORK stage (research, planning) and haven't touched any files yet, use `--allow-empty`:
+
+```bash
+git commit --allow-empty -m "feat(auth): initialize issue #42
+
+Starting research phase: JWT token signing options.
+
+Session: S20260218_0900
+Issue: #42
+Phase: 1 - Research"
+```
+
+**The commit format matters.** See [Commit Conventions](/git-collaboration/commit-conventions) for the full reference. The short version:
+- Subject: `[type](scope): short description` — imperative, max 72 chars
+- Trailer block: Session, Issue, Phase — required on every commit
+- Types: `feat`, `fix`, `docs`, `test`, `refactor`, `chore`, `wip`
+
+### 3.5 — Do the work
+
+Work through the DFW phases in your worktree. Commit as logical units of progress. If you need to save mid-session and step away, use a `wip:` commit:
+
+```bash
+git add -A
+git commit -m "wip: end mid-session break — auth handler stubbed, writing tests next
+
+Session: S20260218_1100
+Issue: #42
+State: JWT generation complete and tested. Middleware stub written,
+       not yet wired to router.
+Next: Wire middleware to auth routes, then write integration test."
+git push origin feature/42-auth-module
+```
+
+### 3.6 — End the session (session CLOSE)
+
+At the end of every session, ask: **is the issue done?**
+
+**COMPLETE — acceptance criteria met, ready for PR:**
+```bash
+# 1. Squash wip commits before opening PR
+git rebase -i main
+# In the editor: change 'pick' to 's' on all wip:/chore: commits
+# Transfer their context notes to the PR description
+
+# 2. Push and open PR
+git push origin feature/42-auth-module
+# Open PR on GitHub — use the PR template (.github/pull_request_template.md)
+# Target: central main
+
+# 3. Remove worktree
+cd 02-Projects/RORI
+git worktree remove ../rori-42-auth
+```
+
+**CONTINUABLE — good progress, more work needed next session:**
+```bash
+# 1. Write end-of-session wip commit
+git add -A
+git commit -m "wip: end of session S20260218 on issue #42
+
+Session: S20260218_1400
+Issue: #42
+State: [what is done and what is not]
+Next: [exactly what to do at session start next time]"
+
+# 2. Push
+git push origin feature/42-auth-module
+# Leave the worktree in place — it's your save point
+```
+
+**SCOPE CHANGED — issue is larger than expected:**
+```bash
+# 1. Commit current state with rationale
+git add -A
+git commit -m "wip: end of session S20260218 — scope decomposed
+
+Session: S20260218_1400
+Issue: #42 (original)
+Decomposed into: #49 (refresh token rotation), #50 (token revocation)
+Rationale: [why this needed splitting]"
+
+# 2. Push
+git push origin feature/42-auth-module
+
+# 3. Create child issues in the tracker
+# 4. Remove worktree if no longer needed
+```
+
+See [Session-End Workflow](/git-collaboration/session-end-workflow) for the complete session CLOSE decision tree and exact steps for each path.
+
+---
+
+## Part 4: After Your PR Merges
+
+Once your PR is approved and merged to central, run `dfwsync-complete` to clean up:
+
+```bash
+cd 02-Projects/RORI
+git dfwsync-complete feature/42-auth-module
+```
+
+This:
+1. Fetches from upstream
+2. Fast-forwards your fork's `main` to include the merged PR
+3. Rebases your `local` branch on the updated `main`
+4. Deletes the feature branch locally and from your fork
+
+Your workspace is clean and ready for the next issue.
+
+---
+
+## Part 5: Resuming a Continuable Branch
+
+If you're picking up a branch from a previous session (yours or a teammate's):
+
+```bash
+cd 02-Projects/RORI
+git dfwsync-resume feature/42-auth-module
+```
+
+This syncs fork main from central and rebases your feature branch on the updated main. Then write a required resume commit:
+
+```bash
+cd ../rori-42-auth   # back into your worktree
+git commit --allow-empty -m "chore: resume session S20260219 on issue #42
+
+Resuming from: S20260218
+Current state: [read from previous wip commit or handoff]
+Next: [what to do this session]
+
+Session: S20260219_0900
+Issue: #42
+Phase: 3 - Implementation"
+```
+
+The resume commit is always required — even when resuming your own work, even when you remember where you left off. It creates the session boundary in the commit log.
+
+If you're picking up a branch from a **teammate**, read the cross-dev handoff document they left in `prompts/handoffs/` first. See `DFW/Tools/templates/PROTOCOL-cross-dev-handoff.md`.
+
+**If you removed the worktree** (e.g. after a previous COMPLETE), create a new one before resuming:
+```bash
+cd 02-Projects/RORI
+git worktree add ../rori-42-auth feature/42-auth-module
+cd ../rori-42-auth && ./scripts/worktree-setup.sh
+```
+
+---
+
+## Part 6: Working on Multiple Issues in Parallel
+
+If you have two active issues in the same project, use worktrees — one per issue:
+
+```bash
+# Already have rori-42-auth running. Start a second:
+cd 02-Projects/RORI
+git dfwsync-start feature/43-user-profile rori-43-profile
+cd ../rori-43-profile && ./scripts/worktree-setup.sh
+
+# Switch between them with cd, not git checkout:
+cd ../rori-42-auth    # auth work
+cd ../rori-43-profile # profile work
+```
+
+Keep a maximum of 3–4 active worktrees per project. More than that is a signal you're overloaded or issues are too large.
+
+---
+
+## Reference: The Three DFW Git Aliases
+
+These are the only three commands you need to remember for session management. Everything else is standard git.
+
+| Alias | When | What it does |
+|-------|------|-------------|
+| `git dfwsync-start <branch> <worktree-dir>` | New issue | Sync fork main → create branch + worktree |
+| `git dfwsync-complete <branch>` | After PR merges | Sync fork main → sync local → delete branch |
+| `git dfwsync-resume <branch>` | Resuming continuable branch | Sync fork main → rebase branch |
+
+Run any of them with no arguments to see usage.
+
+---
+
+## Reference: Key Files in Every DFW Project
+
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | Team AI memory — architecture decisions, gotchas, patterns. Read first every session. |
+| `CONTRIBUTING.md` | Full DFW contributing guide for this project |
+| `.github/pull_request_template.md` | PR description template |
+| `.github/ISSUE_TEMPLATE/feature.md` | Feature issue template |
+| `.github/ISSUE_TEMPLATE/bug.md` | Bug issue template |
+| `scripts/worktree-setup.sh` | Per-worktree environment setup |
+| `docs/handoffs/` | Cross-dev handoff documents |
+
+---
+
+## Reference: Key Files in DFW repo (DFW)
+
+| File | Purpose |
+|------|---------|
+| `DFW constitution docs` | DFW first principles — read before amending anything |
+| `DFW/Tools/templates/HANDOFF-TEMPLATE.md` | Standard session handoff format |
+| `/operating-manual/tools-and-integrations` | Fit-for-purpose tool assignments and integration guidance |
+| `/operating-manual/overview` | Daily workflow reference and methodology overview |
+| `/git-collaboration/branch-strategy` | Fork model, branch lifecycle, worktrees |
+| `/git-collaboration/commit-conventions` | Complete commit format reference |
+| `/git-collaboration/session-end-workflow` | Session CLOSE decision tree and steps |
+| `/git-collaboration/pr-conventions` | PR template and review norms |
+| `DFW/Tools/templates/PROTOCOL-cross-dev-handoff.md` | Handing off a branch to a teammate |
+
+---
+
+## Troubleshooting
+
+**`dfwsync-start` alias not found**
+The workspace setup script didn't complete. Re-run `./Tools/scripts/workspace-setup.sh` and check for errors.
+
+**`--ff-only` fails during dfwsync-start**
+Your fork's `main` has commits that aren't in central — someone committed directly to fork `main`. Fix:
+```bash
+git checkout main
+git reset --hard upstream/main
+git push origin main --force
+```
+Then re-run `dfwsync-start`.
+
+**worktree-setup.sh fails on dependencies**
+The script is a template — it may not match your project's toolchain yet. Open `scripts/worktree-setup.sh` and check the "Install dependencies" section. If the project uses a different package manager, update the script and open a PR.
+
+**02-Projects/ directory not found**
+The workspace setup script hasn't been run, or was run from the wrong location. It must be run from inside `DFW`. Re-run it.
+
+**`local` branch has conflicts after dfwsync-complete**
+A merged PR touched the same files your `local` branch touches. Resolve normally:
+```bash
+git rebase main
+# Resolve any conflicts, then:
+git add <resolved-files>
+git rebase --continue
+```
+If the rebase is too complex, abort and use merge instead:
+```bash
+git rebase --abort
+git merge main
+```
+
+**Something else is wrong**
+Check `docs/git-collaboration/` — most scenarios are documented. If it's not there, ask in the team channel and consider opening an issue so the docs can be updated.
+
+---
+
+## What Comes Next
+
+You've set up your workspace, cloned a project, started an issue, and know how to end a session. The daily workflow from here is:
+
+1. `git dfwsync-start` (new issue) or `git dfwsync-resume` (continuing)
+2. `./scripts/worktree-setup.sh`
+3. Write your first/resume commit
+4. Work through DFW phases
+5. session CLOSE: classify COMPLETE / CONTINUABLE / SCOPE CHANGED and take the right git path
+6. After PR merge: `git dfwsync-complete`
+
+The playbook documents in `docs/git-collaboration/` cover every scenario you'll encounter. The scenarios docs (A, B, C) cover the collaboration patterns you'll hit as the team grows. The more sessions you complete, the more natural this becomes — the friction is in the first few runs, not the steady state.
+
+---
+
+**Related Documents**
+- [Workspace Conventions](/git-collaboration/workspace-conventions) — workspace layout reference
+- [Branch Strategy](/git-collaboration/branch-strategy) — fork model and full branch lifecycle
+- [Commit Conventions](/git-collaboration/commit-conventions) — complete commit format reference
+- [Session-End Workflow](/git-collaboration/session-end-workflow) — session CLOSE decision tree in full
+- [PR Conventions](/git-collaboration/pr-conventions) — opening and reviewing PRs
+- `DFW/Tools/templates/PROTOCOL-cross-dev-handoff.md` — handing off to a teammate
