@@ -1,7 +1,7 @@
 {
   "$schema": "https://mintlify.com/docs.json",
   "theme": "mint",
-  "name": "DFW — Development Flywheel",
+  "name": "DFW \u2014 Development Flywheel",
   "colors": {
     "primary": "#0ea5e9",
     "light": "#38bdf8",
@@ -56,6 +56,29 @@
               "reference/glossary",
               "reference/mcp-architecture",
               "reference/version-history"
+            ]
+          },
+          {
+            "group": "Git Collaboration",
+            "pages": [
+              "git-collaboration/onboarding",
+              "git-collaboration/workspace-conventions",
+              "git-collaboration/branch-strategy",
+              "git-collaboration/commit-conventions",
+              "git-collaboration/pr-conventions",
+              "git-collaboration/session-end-workflow",
+              "git-collaboration/team-knowledge-sharing",
+              "git-collaboration/scenario-a-parallel-projects",
+              "git-collaboration/scenario-b-parallel-workstreams",
+              "git-collaboration/scenario-c-async-handoffs",
+              {
+                "group": "Vault Onboarding",
+                "pages": [
+                  "git-collaboration/vault-onboarding/setup-guide",
+                  "git-collaboration/vault-onboarding/first-session",
+                  "git-collaboration/vault-onboarding/vault-governance"
+                ]
+              }
             ]
           }
         ]

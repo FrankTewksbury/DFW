@@ -1,0 +1,246 @@
+---
+title: "Team Knowledge Sharing"
+description: "How project learnings are promoted into shared DFW knowledge for the broader team."
+icon: "sparkles"
+---
+
+## SPEC Boundary
+
+This protocol governs **Project SPEC** — team-level knowledge specific to one project's repository. In the SPEC hierarchy:
+
+- Global SPEC (Constitution + DFW skills library) overrides this protocol
+- This protocol governs the team CLAUDE.md and knowledge sharing within a project
+- Individual handoffs and task-level docs are Local SPEC, scoped below this protocol
+
+This means: if a team CLAUDE.md entry contradicts the DFW Constitution, the Constitution wins and the CLAUDE.md entry must be corrected. If a personal annotation on a developer's `local` branch contradicts the team CLAUDE.md, the team CLAUDE.md wins for any work that reaches central.
+
+---
+
+## Overview
+
+The DevFlywheel learning loop is designed to compound. In solo DFW, learning compounds within one developer's sessions. In a team, learning must also compound *across* developers — or each developer independently rediscovers the same mistakes, hits the same gotchas, and rebuilds the same mental models.
+
+This protocol defines the team knowledge sharing system: what gets shared, where it lives, how it flows, and the rules that keep it useful rather than noisy.
+
+The primary artifact is the team `CLAUDE.md` file at the root of the central repository. Everything else in this protocol supports it.
+
+---
+
+## The Three-Tier Knowledge Hierarchy
+
+```
+Tier 1 — Global (DFW constitution docs)
+  Principles and conventions that apply to every project
+  Changes require admin approval + team discussion
+
+Tier 2 — Team (central repo CLAUDE.md)
+  Knowledge specific to this project, validated by the team
+  Changes require PR + one team member +1
+
+Tier 3 — Personal (developer's local branch CLAUDE.md annotations)
+  Personal observations, preferences, and experiments
+  No approval — stays in fork, never merges to central
+```
+
+Knowledge flows **upward** when it proves broadly valuable — personal observations that prove out can be promoted to team CLAUDE.md; team patterns that prove useful across multiple projects can be promoted to the Global DFW skills library. Knowledge never flows down automatically; promotion is always a deliberate act.
+
+---
+
+## The Team CLAUDE.md File
+
+### What It Is
+
+A structured, AI-readable file at `CLAUDE.md` in the central repo root. It is the team's accumulated practical wisdom about this specific project: the traps, the decisions, the patterns that work, the things that will burn you if you don't know them.
+
+AI coding tools (Cursor, Claude Code, others) read `CLAUDE.md` by convention from the repository root. This means every developer on the team gets consistent AI behavior, informed by the team's collective experience — not just their own.
+
+### What Goes In It
+
+Content belongs in team CLAUDE.md when it meets **all three** of these tests:
+
+1. **Relevant to any developer on this project** — not personal preference or local environment quirk
+2. **Actionable** — a developer (or AI assistant) can act on it immediately without additional research
+3. **Validated** — either hit independently by more than one developer, OR certain enough that waiting for a second hit is wasteful (e.g., a documented API rate limit)
+
+Content that fails these tests belongs in personal annotations (Tier 3) or project documentation (wiki, ADRs), not team CLAUDE.md.
+
+Content that should **not** be in CLAUDE.md at all, because it belongs in better places:
+- Constraints enforceable by linting or type checking → put it in tooling
+- Architecture decisions with full rationale → put them in ADRs
+- Long-form documentation → put it in docs/
+- Personal workflow preferences → personal `local` branch only
+
+### Sections
+
+**Project Context** — 2-3 sentences describing the project for a developer (or AI) encountering it for the first time.
+
+**Architecture Decisions** — distilled outcomes of ADRs, in rule form. Not the reasoning (that's in the ADR), just the actionable conclusion:
+```
+| Decision | Rule |
+|----------|------|
+| Auth uses RS256 JWT | Always sign tokens with RS256, never HS256 |
+```
+
+**Mistakes to Avoid (Team-Validated)** — systemic mistakes, confirmed by more than one developer hitting them:
+```
+❌ Don't call the payments API in synchronous request handlers — it times out under load.
+   Use the background job queue.
+```
+
+**Patterns to Follow** — approaches that have proven effective and should be the default:
+```
+✅ Use the Result<T, E> type for all functions that can fail — never throw exceptions.
+```
+
+**Known Gotchas** — non-obvious facts that save time:
+```
+The staging Redis instance is shared — never flush it during tests.
+```
+
+**Team Conventions (Project-Specific)** — any conventions that extend or override the global DFW defaults for this project.
+
+**New Issues Generated** — a short-lived async inbox for discovered work (see [The Issue Inbox](#the-issue-inbox) below).
+
+---
+
+## The Promotion Workflow: Personal → Team
+
+When a developer makes an observation worth sharing:
+
+### Option A: Confident it belongs in team CLAUDE.md
+
+```bash
+# 1. Create a feature branch
+git dfwsync-start docs/61-claude-md-rate-limit-gotcha
+
+# 2. Edit CLAUDE.md — add the entry to the appropriate section
+# Keep it terse and actionable — one or two lines maximum
+
+# 3. Commit
+git commit -m "docs(claude): add payments API rate limit gotcha
+
+Discovered in S20260217 — async job queue is the correct pattern.
+Confirmed by @devB in S20260216 (independent discovery).
+
+Session: S20260217_1400
+Issue: #61
+Phase: 3 - Implementation"
+
+# 4. Open PR
+git push origin docs/61-claude-md-rate-limit-gotcha
+# PR title: "docs: add payments API rate limit gotcha to CLAUDE.md"
+# PR description: what was learned, why it belongs in the team file
+```
+
+### Option B: Not sure yet — add to issue inbox first
+
+Add to the `New Issues Generated` section of CLAUDE.md via a `wip` or session-end commit:
+
+```markdown
+## New Issues Generated
+
+- [ ] Payments API rate limit — always use job queue. Confirmed by @devA S20260217.
+      → Should this become a Mistakes to Avoid entry? Needs one more hit to confirm systemic.
+```
+
+Another developer who independently hits the same issue sees this entry and can elevate it to a full PR.
+
+### Validation Threshold
+
+| Situation | Threshold | Action |
+|-----------|-----------|--------|
+| Independently hit by 2+ developers | Met | Open PR immediately |
+| Hit once, but documented external limit (API docs, vendor note) | Met | Open PR immediately |
+| Hit once, unclear if systemic | Not yet met | Add to issue inbox, await confirmation |
+| Personal preference or style | Never | Personal `local` branch only |
+
+---
+
+## The Issue Inbox
+
+The `New Issues Generated` section of team CLAUDE.md functions as a lightweight async inbox for potential work discovered mid-session. It solves a friction problem: a developer discovers something worth tracking during implementation but doesn't want to break flow to create a formal issue.
+
+**How it works**:
+
+1. Developer discovers something worth noting — adds a one-line entry to `New Issues Generated` in their next `wip` commit or session-end commit
+2. Entry appears in central CLAUDE.md after their branch syncs or PR merges
+3. Any developer reading CLAUDE.md at session start sees the entry
+4. At team sync or when someone has bandwidth, entries are converted to formal issues in the tracker and cleared from the section
+
+**The inbox must not accumulate** — more than ~10 items signals the team needs a processing session. The inbox is for fast capture, not long-term storage.
+
+**Entry format**:
+```
+- [ ] [What was discovered] — discovered S20260217 by @devA
+      [Optional: one-line context or question]
+```
+
+---
+
+## The Personal Annotation Layer
+
+The `local` branch in each developer's fork is the right place for:
+- Personal workflow shortcuts and aliases
+- Local environment quirks specific to their machine
+- Experimental observations not yet validated as systemic
+- Personal reminders that aren't relevant to teammates
+
+Personal annotations are layered on top of team CLAUDE.md via the `local` branch. When a developer's AI assistant reads CLAUDE.md, it sees both the team content (from fork `main`) and the personal layer (from `local`'s additions).
+
+Personal annotations **never merge to central**. If a personal annotation proves broadly valuable, it gets extracted to a feature branch and goes through the standard PR process.
+
+---
+
+## New Team Member Onboarding
+
+For a developer joining the project, the first 10 minutes should include reading `CLAUDE.md` in full. It answers the questions that usually take weeks of tribal knowledge transfer:
+
+- What are the traps in this codebase?
+- What has the team already decided and why?
+- What patterns does the team consider good practice here?
+- What will burn me if I don't know about it?
+
+This is P1 (Context Is Currency) operating at the team level — the team's compound interest handed to a new member on day one rather than accumulated over months of painful discovery.
+
+New members should also be told explicitly: when you discover something that isn't in CLAUDE.md and should be, open a PR. The file grows through use.
+
+---
+
+## Keeping CLAUDE.md Useful: Maintenance Discipline
+
+A CLAUDE.md that grows without pruning becomes noise. Keep it useful with these rules:
+
+**Add with care**: Every entry should pass the three-test filter (relevant, actionable, validated). When in doubt, use the issue inbox rather than the main file.
+
+**Prune when superseded**: When a gotcha is fixed by a code change, remove the entry. When an architectural decision changes, update the table. Stale entries erode trust in the file.
+
+**Review quarterly**: As part of the team retrospective, scan CLAUDE.md for entries that are no longer accurate. Assign removal as a docs issue.
+
+**Length discipline**: Team CLAUDE.md should be readable in 10 minutes by a new developer. If it's growing past ~200 lines, review whether entries belong in better homes (documentation, ADRs, tooling).
+
+---
+
+## Promotion to Global Scope
+
+Patterns that prove consistently valuable across multiple projects should be promoted from team CLAUDE.md into the shared DFW skills area (`DFW/Tools/skills/`). This follows the existing DFW promotion process:
+
+1. Pattern is validated on at least 2 projects
+2. Developer proposes promotion via a Tier 1 PR to the shared DFW repo
+3. Admin group reviews and approves
+4. Pattern is removed from project CLAUDE.md (it now lives at the higher tier)
+
+This is how team-level learning becomes organisational-level learning — the flywheel spinning at its largest radius.
+
+---
+
+## Flywheel Connection
+
+Every entry in team CLAUDE.md represents a mistake that will never be made again by any developer on this team — because it's documented. A 30-minute debugging session that produced a one-line gotcha entry has paid for itself the first time a teammate reads that entry and skips the 30-minute session entirely. Multiplied across a team over a year, team CLAUDE.md is where the flywheel's compounding becomes most visible. P5 (Feedback Closes the Loop) at team scale.
+
+---
+
+## Related Documents
+- [Branch Strategy](/git-collaboration/branch-strategy) — team CLAUDE.md changes follow Tier 2 PR process
+- [PR Conventions](/git-collaboration/pr-conventions) — PR format for CLAUDE.md updates
+- [Scenario A: Parallel Projects](/git-collaboration/scenario-a-parallel-projects) — cross-pollination across projects via this protocol
+- Team CLAUDE.md Research — full design rationale

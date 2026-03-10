@@ -33,3 +33,27 @@ The script classifies `.md` files by name into: **retrospective**, **journal**, 
 ### Front matter (optional)
 
 In YAML front matter, the script reads `source_prompt`, `created`, `description`, `phase`, `iteration`, etc. Use `phase: 2` or `iteration: 1` for filtering in Obsidian/Claude.
+
+
+## Git Collaboration Scripts
+
+### workspace-setup.sh / workspace-setup.ps1
+
+Bootstrap a DFW workspace from the shared `DFW` repo clone. These scripts create `02-Projects/` and install the `dfwsync-*` aliases used by the Git Collaboration docs.
+
+### project-clone.sh / project-clone.ps1
+
+Clone a project repo into `02-Projects/`, wire `origin`/`upstream`, and verify the clone matches the DFW fork workflow.
+
+### worktree-setup.sh
+
+Project-level helper template for setting up a newly created git worktree. Copy this into downstream repos that adopt the Git Collaboration workflow. On Windows, run it from Git Bash or another POSIX-compatible shell.
+
+
+## Initialize-DFWP.ps1
+
+Scaffolds the DFWP meta-project from the current DFW templates. In addition to the base DFWP structure, it now copies the Git Collaboration assets needed for branch-based team workflows: `.github/` templates, `CONTRIBUTING.md`, and `scripts/worktree-setup.sh`.
+
+## Initialize-DFW.ps1
+
+Bootstraps the broader DFW installation layout. Use this when setting up DFW itself rather than creating a new downstream project.

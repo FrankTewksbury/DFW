@@ -1,0 +1,212 @@
+---
+title: "Scenario A: Parallel Projects"
+description: "How small teams share learnings across multiple active projects without context loss."
+icon: "shuffle"
+---
+
+## What This Scenario Covers
+
+Scenario A describes a DFW team where developers are working on **different projects** in parallel — each developer has their own project focus, but they are operating within the same DFW framework and want to share what they learn.
+
+This is the most loosely coupled of the three scenarios. Developers aren't touching the same codebase day-to-day, but they are building on the same platform of knowledge. The challenge is ensuring that learning in one project propagates to the other, rather than staying siloed.
+
+**Typical context**: A small agency running 3 client projects simultaneously with the same 2–3 developers rotating across them. Or a product team with a frontend project, a backend project, and an infrastructure project all active at once.
+
+---
+
+## The Setup
+
+Each project has its own central repository. Each developer has their own fork per project. The DFW three-branch structure applies to each fork independently.
+
+```
+Central: github.com/team/project-rori    ← Project A
+Central: github.com/team/project-nova    ← Project B
+
+devA's forks:
+  github.com/devA/project-rori   → main / local / feature/42-auth-module
+  github.com/devA/project-nova   → main / local / feature/11-dashboard
+
+devB's forks:
+  github.com/devB/project-rori   → main / local / feature/43-user-profile
+  github.com/devB/project-nova   → main / local / feature/12-export
+```
+
+Parallel work across projects uses **separate directory clones**, not worktrees — worktrees operate within a single repository. A developer switches between projects by switching directories, not by switching branches.
+
+```bash
+{workspace}/
+├── DFW/                    ← DFW repo clone
+└── 02-Projects/
+    ├── RORI/                   ← clone of devA's fork of rori
+    ├── NOVA/                   ← clone of devA's fork of nova
+    ├── rori-42-auth/           ← worktree for rori feature/42 (within RORI's .git)
+    └── nova-11-dashboard/      ← worktree for nova feature/11 (within NOVA's .git)
+```
+
+Worktrees land in `02-Projects/` alongside their parent repo — this is the result of running `dfwsync-start` from inside `02-Projects/RORI/`, which creates the worktree at `../rori-42-auth` (i.e. `02-Projects/rori-42-auth`). See [Workspace Conventions](/git-collaboration/workspace-conventions) for the full layout.
+
+---
+
+## The Cross-Pollination Problem
+
+Without deliberate structure, parallel project work produces siloed knowledge:
+- devA discovers a pattern for managing async errors in `project-rori`
+- devB independently solves the same problem in `project-nova` three weeks later
+- Neither discovers what the other learned
+
+This is anti-flywheel. The team is doing the same intellectual work twice and paying the same cost twice. Cross-pollination is the mechanism that stops this from happening.
+
+---
+
+## The Cross-Pollination Mechanism
+
+Knowledge flows between projects through two channels:
+
+### Channel 1: Global DFW skills library (DFW)
+
+When a pattern proves valuable on one project and is likely to work on others, it gets promoted into the shared DFW skills area. This is the highest-leverage channel — a skill promoted here becomes available to every project, every developer, and every AI assistant immediately.
+
+**Promotion path**:
+1. devA discovers a useful pattern on `project-rori` — documents it in `project-rori`'s CLAUDE.md first
+2. Pattern proves itself over 2–3 sessions and holds up under variation
+3. devA opens a Tier 1 PR to the shared DFW repo proposing the pattern
+4. Admin group reviews — does this genuinely generalise?
+5. If yes: merged to global scope, removed from project-level CLAUDE.md (it lives at the higher tier now)
+
+**What belongs in the DFW skills library**: Patterns, conventions, and reusable approaches that are **project-agnostic** — they work regardless of which codebase they're applied to. Examples: error handling patterns, testing strategies, code organisation conventions, AI prompt patterns, workflow improvements.
+
+**What doesn't belong**: Project-specific knowledge (API rate limits, database quirks, architecture decisions) — that stays in the project's team CLAUDE.md.
+
+### Channel 2: Team Retrospective Cross-Project Review
+
+At team retrospectives (weekly or per-sprint), developers share notable learnings from their projects using a simple structure:
+
+```
+Project: project-rori
+Issue: #42 — Auth module
+Highlight: RS256 vs HS256 decision — sharing because it's likely relevant to nova's upcoming auth work
+Key learning: Always use RS256 when third-party consumers will need to verify tokens independently
+Action: devB reads the PR #42 Session History before starting nova's auth issue
+```
+
+This is a lightweight broadcast — not a deep discussion, just making discoveries visible across the team. It takes 5 minutes per project per retrospective.
+
+---
+
+## Session Workflow: Switching Between Projects
+
+A developer running parallel projects follows the same DFW four-phase cycle per project, but sessions on different projects can interleave throughout the week.
+
+**Monday morning — starting on RORI**:
+```bash
+cd {workspace}/02-Projects/RORI
+git dfwsync-start feature/42-auth-module rori-42-auth
+# Worktree created at: {workspace}/02-Projects/rori-42-auth
+cd ../rori-42-auth
+./scripts/worktree-setup.sh
+# DFW Phase 1: load context (read CLAUDE.md, recent commits, handoff)
+# DFW Phases 2-3: implement
+# DFW session CLOSE: classify → CONTINUABLE
+git add -A && git commit -m "wip: end session ..." && git push origin feature/42-auth-module
+# Worktree stays in place — resume here next session
+```
+
+**Tuesday afternoon — switching to NOVA**:
+```bash
+# RORI work saved. Move to NOVA — completely separate repo.
+cd {workspace}/02-Projects/NOVA
+git dfwsync-start feature/11-dashboard nova-11-dashboard
+# Worktree created at: {workspace}/02-Projects/nova-11-dashboard
+cd ../nova-11-dashboard
+./scripts/worktree-setup.sh
+# Fresh context load for nova — different project, different CLAUDE.md
+# The fork sync ensures any team updates to nova are current before starting
+```
+
+**Resuming RORI on Wednesday** (branch already exists):
+```bash
+cd {workspace}/02-Projects/RORI
+git dfwsync-resume feature/42-auth-module
+# Syncs main, rebases feature branch onto updated main
+cd ../rori-42-auth  # worktree still in place from Monday
+# Write resume commit, then continue
+```
+
+**Key principle**: Each project gets its own complete DFW session. Switching projects is not a context switch within a session — it is a full session CLOSE on the current project followed by a fresh START on the next. Mixing work from two projects in one session is a scope boundary violation (P6).
+
+---
+
+## The New Issues Inbox Across Projects
+
+When working on `project-rori`, a developer may notice something that applies to `project-nova`:
+
+```markdown
+## New Issues Generated (project-rori CLAUDE.md)
+
+- [ ] Rate limiting pattern from rori payments might apply to nova's API client
+      → Should become a DFW skills library candidate if it generalises
+      → Flagged for next retrospective: cross-project relevance check
+```
+
+This entry stays in `project-rori`'s CLAUDE.md until the next retrospective. At retrospective, the team decides: is this a rori-specific fix, a nova-relevant adaptation, or a global DFW skills library candidate?
+
+---
+
+## Concrete Example: devA and devB on rori + nova
+
+**Week 1, Session 1 — devA on rori, devB on nova (independent, no coordination needed)**
+
+devA opens `feature/42-auth-module` on rori. devB opens `feature/11-dashboard` on nova. Each follows their own DFW cycle. No cross-project coordination needed — they're in separate repos.
+
+**Week 1, Session 2 — devA discovers something worth sharing**
+
+While implementing JWT auth on rori, devA makes the RS256 vs HS256 decision. Notes it in rori's CLAUDE.md immediately:
+
+```markdown
+## Architecture Decisions
+| RS256 for JWT signing | Always use RS256 — public key distributable to third parties. HS256 requires sharing the secret. |
+```
+
+At week's retrospective, devA flags this: "nova is going to implement auth in a few weeks — this decision will apply. RS256 is the right call there too."
+
+**Week 2, Session 1 — devB on nova, starting auth work**
+
+devB's START context load includes reading the retrospective notes from last week. Sees devA's callout. Before implementing nova's auth, reads rori PR #42's Session History in full. Arrives at RS256 immediately — zero rediscovery cost.
+
+devB's planning commit references this explicitly:
+
+```
+docs: add acceptance criteria for nova issue #18 — auth module
+
+Note: Following RS256 decision established in rori #42 (devA). See rori PR for rationale.
+RS256 confirmed appropriate for nova given same third-party consumer pattern.
+
+Session: S20260224_0900
+Issue: #18
+Phase: 2 - Planning
+```
+
+**This is cross-pollination in action.** One decision, made once, documented in DFW artifacts, read and applied on a second project. The time cost of the RS256 research was paid once. The benefit was collected twice.
+
+---
+
+## What Each Developer Owns
+
+In Scenario A, there is no shared branch or PR review obligation between projects unless a developer explicitly volunteers to review across project boundaries.
+
+**Each developer fully owns their project PRs** — self-review is acceptable, or cross-project review is a courtesy, not a requirement.
+
+**Cross-project review becomes valuable when**: The issue touches an area where the other developer has directly relevant context (e.g., devA reviewing a nova auth PR because they just built the same thing on rori). Flag this at retrospective: "I can usefully review nova #18 because I just finished rori #42."
+
+---
+
+## Flywheel Connection
+
+Scenario A is where the DFW flywheel operates at its largest radius. The DFW skills library promotion path means that a pattern discovered on one project eventually runs on every project automatically — without any developer needing to manually transfer it. The retrospective cross-project review means that tacit knowledge (decisions, surprises, approaches) doesn't just live in one PR's Session History but propagates across the team before the next parallel project hits the same problem. At full speed, a team running Scenario A is genuinely learning faster than any individual developer could alone.
+
+---
+
+## Related Documents
+- [Team Knowledge Sharing Protocol](/git-collaboration/team-knowledge-sharing) — CLAUDE.md promotion mechanics
+- [Branch Strategy](/git-collaboration/branch-strategy) — fork model applies per-project
+- [PR Conventions](/git-collaboration/pr-conventions) — Session History is the cross-project knowledge source

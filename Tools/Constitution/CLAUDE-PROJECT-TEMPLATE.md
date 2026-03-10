@@ -92,5 +92,30 @@ DFW = Development Flywheel. It is the mandatory project methodology.
 
 ---
 
+## DFW Version Alignment
+
+**Based on**: [DFW version or docs URL]
+**Reviewed**: [session ID when last reviewed]
+
+This project aligns with the core DFW principles. The following deliberate
+extensions or deviations exist:
+
+| Extension | DFW Default | This Project | Rationale |
+|-----------|-------------|--------------|-----------|
+| *(none — add rows if the project deviates from DFW defaults)* | | | |
+
+All other DFW concepts are adopted without modification. If no extensions
+exist, delete this table and note "No deviations — full DFW compliance."
+
+---
+
+## Session Log
+
+| Session | Work Done | Key Outputs |
+|---------|-----------|-------------|
+| *(first session goes here)* | | |
+
+---
+
 > **PROJECT-SPECIFIC NOTES:**
 > *(Add project-specific persona, tech stack, architecture notes, and constraints below this line.)*

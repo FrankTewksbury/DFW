@@ -1,0 +1,338 @@
+---
+title: "Branch Strategy"
+description: "Branch lifecycle, fork workflow, and worktree conventions for DFW collaboration."
+icon: "git-branch"
+---
+
+## Foundation: GitHub Flow + DFW Extensions
+
+The DFW branching model is **GitHub Flow** extended with DFW-specific mechanics. GitHub Flow was chosen because its structure mirrors every DFW architecture decision: one protected `main`, short-lived feature branches tied to issues, and PR-driven review. The DFW extensions (fork model, session markers, worktrees, governance tiers) layer on top without contradiction.
+
+What DFW is **not**:
+- Not GitFlow — there is no `develop` branch, no release branches, no accumulation branch
+- Not trunk-based development — branches live for the life of an issue, not hours
+- A hotfix is a regular `fix/` issue with elevated priority — there is no separate hotfix process
+
+---
+
+## The Repository Structure
+
+```
+Central Repo (github.com/team/project)
+└── main  ← protected, admin-only merge, always production-ready
+
+Developer Fork (github.com/devA/project)
+├── main         ← mirror of central/main — NEVER commit here directly
+├── local        ← personal layer: local configs, tool settings, annotations
+│                   rebases on fork/main when central updates
+│                   NEVER merges to central
+└── feature/42-auth-module   ← active work, one per issue
+    fix/51-payment-null      ← bug fix, same rules as feature
+    research/38-jwt-options  ← spike or research, same rules
+    docs/55-api-spec         ← documentation-only, same rules
+```
+
+### The `local` Branch
+
+`local` is each developer's personal configuration layer. It holds:
+- Editor and tooling settings not appropriate for the shared repo
+- Personal aliases, scripts, `.env` overrides
+- Personal annotations to `CLAUDE.md` (not yet validated for the team)
+- Local workflow experiments
+
+`local` is **permanent** in the fork — it exists for the life of the project. It **rebases on fork `main`** after a PR merges to central, so it always contains the latest central changes plus the developer's personal layer on top.
+
+`local` **never merges to central**. If something in `local` proves valuable to the whole team, it follows the normal PR process: extract it to a feature branch and open a PR.
+
+---
+
+## Branch Naming
+
+```
+[type]/[issue-id]-[short-description]
+```
+
+| Prefix | When to Use |
+|--------|------------|
+| `feature/` | New capability or enhancement |
+| `fix/` | Bug fix (including hotfixes) |
+| `research/` | Spike, exploration, or investigation |
+| `docs/` | Documentation-only change |
+
+**Examples**:
+```
+feature/42-auth-module
+feature/43-user-profile
+fix/51-payment-null-check
+research/38-jwt-signing-options
+docs/55-api-endpoint-spec
+```
+
+**Rules**:
+- Issue ID first — makes `git branch -a` output scannable
+- Short description in kebab-case — no spaces, no special characters
+- Keep descriptions to 3–5 words maximum
+- Session IDs travel in **commit messages**, not branch names
+
+---
+
+## Branch Lifecycle
+
+Every feature branch follows this lifecycle from creation to deletion:
+
+```
+1. SYNC      → sync fork main from central
+2. CREATE    → create branch from synced main (or local, if personal config needed)
+3. WORK      → implement, commit with DFW conventions
+4. PHASE 4   → classify: COMPLETE / CONTINUABLE / SCOPE CHANGED
+5. CLOSE     → merge via PR (COMPLETE) or push + continue (CONTINUABLE/SCOPE CHANGED)
+6. CLEAN UP  → delete branch after merge, sync local
+```
+
+### Step 1 & 2: Sync and Create
+
+Before creating any feature branch, sync fork `main` from central. This minimises future merge conflicts and ensures the branch starts from the latest team state.
+
+```bash
+# The dfwsync-start alias handles both steps in one command
+git dfwsync-start feature/42-auth-module
+
+# Expands to:
+git fetch upstream
+git checkout main
+git merge upstream/main --ff-only   # fails loudly if fork main has rogue commits
+git push origin main
+git checkout -b feature/42-auth-module
+```
+
+The `--ff-only` flag is intentional: fork `main` should never have direct commits. If this flag fails, there are commits on fork `main` that don't belong there — resolve before proceeding (see [Edge Cases](#edge-cases)).
+
+**Branching from `local` instead of `main`**: Only branch from `local` when the feature genuinely requires your personal config layer. Most features should branch from `main`. When in doubt, branch from `main`.
+
+### Step 3: Work
+
+Commit using [Commit Conventions](/git-collaboration/commit-conventions). Key points during active work:
+
+- Commits reflect logical units of progress, not time intervals
+- `wip:` commits are used deliberately as session save points — not as a substitute for clean commits
+- The session ID and issue reference appear in every commit's trailer block
+- If interrupted mid-session, create a `wip:` commit and push before switching context
+
+**Worktrees for parallel issues**: If working on multiple issues simultaneously within the same repository, use git worktrees — one worktree per active branch. See [Parallel Work with Worktrees](#parallel-work-with-worktrees).
+
+### Step 4: session CLOSE Classification
+
+At the end of every session, session CLOSE produces one of four outcomes that determine the git action. See [Session-End Workflow](/git-collaboration/session-end-workflow) for the full decision tree.
+
+| Outcome | Meaning | Git Action |
+|---------|---------|-----------|
+| COMPLETE | Acceptance criteria met, ready for review | Open PR to central main |
+| CONTINUABLE | Good progress, scope unchanged, resumes next session | `wip:` commit + push, no PR yet |
+| SCOPE CHANGED | Issue was too large, decomposed into child issues | `wip:` commit + push, new issues created |
+| ABANDONED | Issue dropped entirely — reprioritised or irrelevant | Closing wip commit + push, issue closed |
+
+### Step 5: Close (PR Path)
+
+When session CLOSE produces COMPLETE:
+
+```bash
+# 1. Squash wip commits — clean history for reviewers
+git rebase -i main
+# In the editor: squash (s) wip commits into adjacent logical commits
+# Transfer wip commit notes to PR Session History section
+
+# 2. Push to fork
+git push origin feature/42-auth-module
+
+# 3. Open PR on GitHub
+# Target: central main
+# Description: populated from DFW artifacts (see PR Conventions)
+```
+
+**Branch deletion**: After the PR merges, the feature branch is deleted. The `dfwsync-complete` alias handles this alongside the fork sync:
+
+```bash
+git dfwsync-complete feature/42-auth-module
+
+# Expands to:
+git fetch upstream
+git checkout main
+git merge upstream/main --ff-only
+git push origin main
+git checkout local
+git rebase main           # or: git merge main
+git branch -d feature/42-auth-module
+git push origin --delete feature/42-auth-module
+```
+
+**Resuming a continuable branch**: Use `dfwsync-resume` at the start of a session on an
+existing branch. This syncs fork `main` from central and rebases the feature branch onto
+the updated main before the session's resume commit:
+
+```bash
+git dfwsync-resume feature/42-auth-module
+
+# Expands to:
+git fetch upstream
+git checkout main
+git merge upstream/main --ff-only
+git push origin main
+git checkout feature/42-auth-module
+git rebase main
+```
+
+Use `dfwsync-resume` instead of `dfwsync-start` when the branch already exists. After
+running it, write the required resume commit before doing any other work.
+
+---
+
+## Governance: Which Changes Need What Approval
+
+Branches map directly to the DFW governance tier of the change they carry.
+
+| Change Type | Tier | PR Target | Approval Required |
+|------------|------|-----------|-------------------|
+| Files in `DFW/Tools/` | Tier 1 | Central `main` | All admins (CODEOWNERS enforced) |
+| Project code, docs, config | Tier 2 | Central `main` | Any one team member +1 |
+| Team `CLAUDE.md` | Tier 2 | Central `main` | Any one team member +1 |
+| Developer's `local` branch | Tier 3 | Never merges | No approval — stays in fork |
+
+> **Convention vs. enforcement**: The `local` branch rule (never merges to central) is
+> enforced by convention, not by tooling. There is no `CODEOWNERS` guard or branch
+> protection that prevents a PR from `local`. The team relies on PR reviewers to catch
+> this. Remind developers of this during onboarding.
+
+GitHub's `CODEOWNERS` file enforces the Tier 1 / Tier 2 distinction automatically: any PR touching `DFW/Tools/` requires admin review without manual classification.
+
+**Admin group**: 2–3 designated developers per team, documented in `ADMINS.md` and `CODEOWNERS`. See Admin Group Model for selection, succession, and the Early → Mature process evolution.
+
+---
+
+## Parallel Work with Worktrees
+
+When working on multiple issues simultaneously within the same repository, use git worktrees — one directory per active branch, all sharing a single `.git` history.
+
+```bash
+# Create worktrees for two active issues
+git dfwsync-start feature/42-auth-module rori-42-auth
+cd ../rori-42-auth && ./scripts/worktree-setup.sh
+
+git dfwsync-start feature/43-user-profile rori-43-profile
+cd ../rori-43-profile && ./scripts/worktree-setup.sh
+
+# Switch between issues: cd, not git checkout
+cd ../rori-42-auth    # work on auth
+cd ../rori-43-profile # work on profiles
+```
+
+**One fetch updates all worktrees**: since all worktrees share `.git`, `git fetch upstream` in any directory updates remote tracking for all.
+
+**Worktree naming convention**: `[project-abbreviation]-[issue-id]-[short-description]`  
+Example: `rori-42-auth`, `rori-43-profile`
+
+**Maximum active worktrees**: 3–4 per project. More than that is a signal the developer is overloaded or issues are too large.
+
+**Worktree cleanup**: Remove worktrees after their PR merges (handled by `dfwsync-complete`) or at session end if the issue is SCOPE CHANGED:
+
+```bash
+cd 02-Projects/RORI             # main repo directory (from workspace root)
+git worktree remove ../rori-42-auth
+git worktree prune               # clean up stale references
+```
+
+**Worktrees vs. multiple clones**: Worktrees are preferred for same-repository parallel work — they share history, share remote config, and are tracked by git. Multiple clones are appropriate when working on genuinely different repositories (e.g., two separate projects in `02-Projects/`).
+
+---
+
+## Stale Branch Policy
+
+A branch with no PR after **3 sessions** is a decomposition signal.
+
+At session 3 with no PR, the developer must write a retrospective note in session CLOSE answering: "why is this branch still open?"
+
+- **Good reason** (legitimate complexity, dependency waiting on teammate): document it and continue. The retrospective note is the record.
+- **No good reason** (scope crept, planning was off): decompose. Create child issues for remaining work, push the current branch state, and let the next session start fresh on smaller issues.
+
+The 3-session threshold is a soft guideline, not a hard rule. Its purpose is to create a moment of deliberate reflection — not to force arbitrary decomposition.
+
+---
+
+## Edge Cases
+
+### Fork `main` has rogue commits (`--ff-only` fails)
+
+```bash
+# Identify the offending commits
+git log main..upstream/main --oneline
+
+# Option A: move the commit to a feature branch where it belongs
+git checkout -b feature/recovery-42
+git cherry-pick <commit-hash>
+git checkout main
+git reset --hard upstream/main
+# Then proceed with normal sync
+
+# Option B: discard if it was a mistake
+git checkout main
+git reset --hard upstream/main
+```
+
+Prevention: never `git checkout main` and commit directly. Fork `main` is a mirror, not a working branch.
+
+### `local` rebase has conflicts after sync
+
+Conflicts in `local` arise when a merged PR touched the same files your local config layer touches. Resolve normally:
+
+```bash
+git rebase main
+# If conflicts:
+git status
+# Edit conflicting files
+git add <resolved-files>
+git rebase --continue
+
+# If too messy, abort and use merge instead:
+git rebase --abort
+git merge main
+```
+
+Teams that frequently hit `local` rebase conflicts may prefer `git merge main` as their standard approach — it's less clean but more forgiving. Both are acceptable; the playbook does not mandate one.
+
+### Resuming a branch after a teammate merged
+
+If central `main` has moved while you were on a continuable branch, use `dfwsync-resume`
+to sync before writing the resume commit:
+
+```bash
+git dfwsync-resume feature/42-auth-module
+# Then write the resume commit
+git commit --allow-empty -m "chore: resume session S20260218 on issue #42 ..."
+```
+
+This handles fetch, main sync, and branch rebase in one command. If you prefer manual
+steps (e.g., to inspect what changed before rebasing):
+
+```bash
+git fetch upstream
+git checkout main && git merge upstream/main --ff-only && git push origin main
+git checkout feature/42-auth-module   # or: cd ../rori-42-auth
+git rebase main
+# Then write the resume commit
+git commit --allow-empty -m "chore: resume session S20260218 on issue #42 ..."
+```
+
+---
+
+## Flywheel Connection
+
+The branch naming convention — `[type]/[issue-id]-[description]` — means every branch is permanently linked to an issue, and every issue is permanently linked to a branch. When you run `git log --all --oneline` six months from now, you see the complete arc of every decision the team made. The issue is the "why," the branch is the "what," and the commit history is the "how." Three artifacts, one story, permanently preserved. That's the flywheel accumulating.
+
+---
+
+## Related Documents
+- [Commit Conventions](/git-collaboration/commit-conventions) — format of every commit on these branches
+- [Session-End Workflow](/git-collaboration/session-end-workflow) — session CLOSE decision tree in full detail
+- [PR Conventions](/git-collaboration/pr-conventions) — what happens when a branch becomes a PR
+- Fork Sync Workflow — full alias definitions
+- Worktree Automation — worktree-setup.sh and lifecycle
+- Admin Group Model — Tier 1 governance detail

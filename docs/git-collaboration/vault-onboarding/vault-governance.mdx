@@ -1,0 +1,146 @@
+---
+title: "Vault Governance Workflow"
+description: "How teams using a shared Obsidian vault alongside DFW should review and merge governance changes."
+icon: "shield-check"
+---
+
+## Scope
+
+This document is for teams that maintain a **shared Obsidian vault or knowledge repo alongside DFW**.
+It does **not** define the canonical folder structure of `FrankTewksbury/DFW` itself. Exact vault paths are team-specific.
+
+The rules here are about **governance flow**, not about requiring one particular vault layout.
+
+---
+
+## Purpose
+
+Shared governance content has a larger blast radius than project code. Whether your team stores that content in an Obsidian vault, a shared docs repo, or a dedicated knowledge layer, the workflow should stay the same:
+
+- personal content stays personal
+- shared governance changes go through review
+- reusable patterns are promoted deliberately
+
+---
+
+## Branch Model
+
+Use the same fork model described in the Git Collaboration docs:
+
+```text
+Central shared repo or vault
+└── main  ← shared source of truth
+
+Developer fork
+├── main   ← mirror of central main
+├── local  ← personal notes, workspace state, personal journal entries
+└── docs/  ← short-lived branches for shared governance changes
+```
+
+**Rule of thumb**: if the content is personal, it belongs on `local`. If it affects the team, it belongs on a reviewed branch.
+
+---
+
+## Content Tiers
+
+| Content type | Branch | Review |
+|-------------|--------|--------|
+| Shared governance docs, templates, reusable patterns | `main` via PR | Tier 1 — admin review |
+| Shared project index, dashboards, research notes, onboarding docs | `main` via PR | Tier 2 — one reviewer |
+| Personal journal entries, local workspace state, private annotations | `local` | No review |
+
+Examples of personal content:
+- journal entries
+- `.obsidian/workspace.json`
+- private notes or annotations not yet ready for team use
+
+Examples of shared content:
+- team onboarding docs
+- reusable templates
+- governance contracts
+- shared knowledge captured for all developers
+
+---
+
+## Workflow For Shared Governance Changes
+
+### 1. Sync before branching
+
+```bash
+cd DFW
+git dfwsync-start docs/brief-description
+```
+
+### 2. Make the change
+
+Edit the shared governance artifact in the repo or team vault location your team uses.
+Before committing, verify any links, templates, or references affected by the change.
+
+### 3. Commit clearly
+
+Use normal DFW commit conventions. Governance changes usually use `docs`, `feat`, or `fix` scopes.
+
+```bash
+git commit -m "docs(governance): clarify vault review workflow
+
+Session: S20260310_0900"
+```
+
+### 4. Open a PR
+
+Your PR should include:
+- what changed
+- why the change is needed
+- which tier applies
+- how a reviewer can verify the result
+
+### 5. Merge and clean up
+
+After merge:
+
+```bash
+git dfwsync-complete docs/brief-description
+```
+
+---
+
+## Promotion To The DFW Skills Library
+
+If a pattern from vault work proves reusable across projects, promote it into `DFW/Tools/skills/` through a reviewed PR.
+Do not leave global patterns trapped in personal notes or one team's private vault structure.
+
+Promotion checklist:
+- validated in real use
+- written in reusable, project-agnostic language
+- indexed in `DFW/Tools/skills/README.md`
+
+---
+
+## Edge Cases
+
+### Merge conflicts in shared governance docs
+
+Resolve them manually. Governance conflicts are semantic conflicts, not just line conflicts.
+The second author should rebase, reconcile both intents, and ask for re-review if meaning changed.
+
+### Personal branch conflicts
+
+If shared changes touch something your `local` branch also touches, rebase and resolve normally.
+That is expected when the shared team conventions evolve.
+
+---
+
+## Flywheel Connection
+
+Governance content is one of the highest-leverage parts of DFW because it shapes how every later project behaves.
+A reviewed change to a shared template or rule improves future sessions for the whole team.
+That is the flywheel working at the methodology layer.
+
+---
+
+## Related Documents
+
+- [Branch Strategy](/git-collaboration/branch-strategy)
+- [PR Conventions](/git-collaboration/pr-conventions)
+- [Team Knowledge Sharing](/git-collaboration/team-knowledge-sharing)
+- [Tools And Integrations](/operating-manual/tools-and-integrations)

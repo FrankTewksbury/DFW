@@ -1,0 +1,436 @@
+---
+title: "Session-End Workflow"
+description: "How session close states map to concrete git actions and handoff expectations."
+icon: "clock"
+---
+
+## Overview
+
+Every DFW session ends with session CLOSE: Validate & Close. In a solo workflow, session CLOSE means running the DFW Doctor, updating a journal, and writing a handoff. In a team git workflow, session CLOSE also drives a **git action** — the action depends on the state of the issue being worked.
+
+This document defines the complete session CLOSE git decision tree and the exact steps for each path. It is the operational heart of the DFW-git integration.
+
+---
+
+## Session-Open Checklist (START)
+
+Before writing a line of code each session, load the full Governance Stack. This is what ensures AI agents are operating within the correct boundaries for this project.
+
+```
+GOVERNANCE STACK — load in order:
+
+[ ] 1. DFW Constitution docs                — check for recent amendments
+[ ] 2. [project]/CLAUDE.md                 — project behavioral rules (code repo, not vault stub)
+[ ] 3. DFW operating-manual docs            — current session procedures and lifecycle
+[ ] 4. Personal-Config overlays             — local branch additions (if any)
+
+Session context:
+[ ] 5. Yesterday's journal "Next Session" section
+[ ] 6. Most recent handoff in `prompts/handoffs/`
+[ ] 7. plans/_TODO.md — today's priorities
+[ ] 8. Review prior DFW Doctor scorecard — any deferred items from last session?
+```
+
+This takes 5–10 minutes. Skipping it means AI agents start from partial context — and partial context produces drift.
+
+---
+
+## The session CLOSE Decision Tree
+
+At the end of every session, answer one question:
+
+```
+Is the issue DONE?
+   ↓
+   ├── YES, acceptance criteria met → PATH A: COMPLETE
+   │
+   ├── NO, but scope is unchanged → PATH B: CONTINUABLE
+   │
+   ├── NO, and scope is larger than expected → PATH C: SCOPE CHANGED
+   │
+   └── Issue is being dropped entirely → PATH D: ABANDONED
+```
+
+This question is the fourth retrospective question added by the DFW-git synthesis — alongside "what worked," "what didn't," and "what did I learn."
+
+---
+
+## PATH A: COMPLETE
+
+**When**: All acceptance criteria are met. Tests pass. The issue is done.
+
+### Steps
+
+```bash
+# ── STEP 1: Squash wip commits ─────────────────────────────────────
+git rebase -i main
+# In the interactive editor:
+#   - Change 'pick' to 's' (squash) on all wip: and chore: resume commits
+#   - Combine into the nearest clean logical commit above them
+#   - The squash commit message is discarded — keep the logical commit's message
+#
+# Transfer the State/Next/context notes from squashed wip commits
+# to the PR description's Session History section (do this before rebasing
+# if you want to preserve them easily — copy from git log first)
+
+# ── STEP 2: Push to fork ────────────────────────────────────────────
+git push origin feature/42-auth-module
+
+# ── STEP 3: Open PR on GitHub ──────────────────────────────────────
+# Target: central main
+# Use the PR template — see PR Conventions
+
+# ── STEP 4: Remove worktree (if applicable) ─────────────────────────
+# From the main repo directory (not inside the worktree):
+cd 02-Projects/RORI
+git worktree remove ../rori-42-auth
+
+# ── STEP 5: Archive completed handoff docs ─────────────────────────
+# Move any handoff docs for this branch from prompts/handoffs/ to prompts/handoffs/archive/
+# Stale handoff docs fed to AI in future sessions create confusion
+mv prompts/handoffs/YYYY-MM-DD-handoff-resume-issue-42.md prompts/handoffs/archive/
+
+# ── STEP 6: Write session journal and handoff ───────────────────────
+# Handoff type: COMPLETE
+# Note the PR number/URL in the handoff
+# List any new issues discovered during implementation
+```
+
+### After the PR Merges (separate action, not session-end)
+
+```bash
+git dfwsync-complete feature/42-auth-module
+# Syncs fork main ← central main
+# Syncs local ← fork main
+# Deletes feature branch locally and on fork
+```
+
+`local` only syncs **after PR merge**, not at session end. This is intentional — keeping `local` stable until the merged state is confirmed.
+
+---
+
+## PATH B: CONTINUABLE
+
+**When**: Good progress was made. The scope hasn't changed. The issue will be resumed in the next session.
+
+### Steps
+
+```bash
+# ── STEP 1: Write the wip commit ───────────────────────────────────
+git add -A
+git commit -m "wip: end of session S20260217 on issue #42
+
+Session: S20260217_1400
+Issue: #42
+State: JWT generation and validation complete (tests passing).
+       Refresh token rotation: rotation logic written, token family
+       invalidation not yet implemented.
+Next: Implement token family invalidation in auth.service.ts,
+      then write full rotation test suite.
+Handoff: 2026-02-17-handoff-resume-issue-42.md"
+
+# ── STEP 2: Push feature branch ────────────────────────────────────
+git push origin feature/42-auth-module
+# The branch on origin is now the save point.
+# The worktree (if used) stays in place — it will be the workspace next session.
+
+# ── STEP 3: Write session journal and handoff ───────────────────────
+# Handoff type: CONTINUABLE
+# Include: branch name, worktree path, current state, resume instructions
+# See DFW/Tools/templates/PROTOCOL-cross-dev-handoff.md if passing to a teammate
+
+# ── NOTE: Dual context carrier for Claude Code ──────────────────────
+# When resuming with Claude Code, load BOTH context sources:
+#   (1) The wip commit body: git log -1 --format='%B' feature/42-auth-module
+#   (2) The handoff doc:     cat prompts/handoffs/YYYY-MM-DD-handoff-resume-issue-42.md
+# The wip commit has the exact state; the handoff has the fuller intent + constraints.
+# Claude Code needs both to resume without questions.
+```
+
+### At the Start of the Resuming Session
+
+**If you removed the worktree** (e.g. after a previous COMPLETE), create a new one first:
+```bash
+cd 02-Projects/RORI
+git worktree add ../rori-42-auth feature/42-auth-module
+cd ../rori-42-auth && ./scripts/worktree-setup.sh
+```
+
+```bash
+# Sync before resuming — central main may have moved
+git fetch upstream
+git checkout main && git merge upstream/main --ff-only && git push origin main
+git checkout feature/42-auth-module   # or: cd ../rori-42-auth
+git rebase main                       # bring branch current with updated main
+
+# Write the required resume commit
+git commit --allow-empty -m "chore: resume session S20260218 on issue #42
+
+Resuming from: S20260217
+Handoff ref: 2026-02-17-handoff-resume-issue-42.md
+Current state: JWT complete. Token family invalidation is next.
+
+Session: S20260218_0900
+Issue: #42
+Phase: 1 - Research"
+```
+
+The resume commit is **required** — even when resuming your own branch, even when you remember exactly where you left off. It creates the session boundary in the commit log that makes the history traceable.
+
+---
+
+## PATH C: SCOPE CHANGED
+
+**When**: The issue turned out to be larger than one branch can cleanly hold. The session revealed hidden complexity, unexpected dependencies, or work that should be done separately.
+
+This is not a failure — it is the DFW system working correctly. P5 (Feedback Closes the Loop) means discovering scope problems during implementation, not before.
+
+### Steps
+
+```bash
+# ── STEP 1: Commit what was accomplished ───────────────────────────
+git add -A
+git commit -m "wip: end of session S20260217 — scope decomposed
+
+Session: S20260217_1400
+Issue: #42 (original — auth module, full scope)
+Completed this session: JWT token generation and validation
+Decomposed into:
+  #49: Refresh token rotation (new issue)
+  #50: Token revocation and family invalidation (new issue)
+Rationale: Token rotation and revocation have independent test suites
+           and can be reviewed separately — combining was slowing review.
+Handoff: 2026-02-17-handoff-scope-change-42.md"
+
+# ── STEP 2: Push branch ─────────────────────────────────────────────
+git push origin feature/42-auth-module
+
+# ── STEP 3: Create child issues in the tracker ──────────────────────
+# Issue #49: Refresh token rotation
+# Issue #50: Token revocation and family invalidation
+# Link both back to #42 as parent context
+
+# ── STEP 4: Decide what happens to the current branch ───────────────
+# Option A: The current branch represents a complete, reviewable unit
+#           of work on its own → open a partial PR for what's done
+# Option B: The branch is a stepping stone — leave it, the child issue
+#           branches will carry the work forward
+# → Document the decision in the handoff
+
+# ── STEP 5: Remove worktree if no longer needed ──────────────────────
+cd 02-Projects/RORI
+git worktree remove ../rori-42-auth   # if decomposed and not continuing
+
+# ── STEP 6: Write session journal and handoff ───────────────────────
+# Handoff type: SCOPE CHANGED
+# Must explain WHY scope changed — this feeds P5 (retrospective learning)
+# New issues documented in handoff
+```
+
+### Why the Rationale Is Required
+
+The session CLOSE SCOPE CHANGED path requires a rationale in the `wip` commit and the retrospective. This is not busywork — it is the primary mechanism by which the team learns to estimate better. Scope changes that are explained and recorded feed directly into future planning. Scope changes that are silent disappear.
+
+### When Scope Change Signals a Deeper Problem
+
+Most SCOPE CHANGED outcomes are normal — issues are hard to size precisely in advance.
+But some scope changes signal a planning or architectural failure rather than natural
+complexity. Signs of this: the issue had to be decomposed because of a wrong assumption
+about the design, because a dependency wasn't identified, or because the acceptance
+criteria were fundamentally misunderstood.
+
+In these cases, run a **debug postmortem** using the four-vector framework
+(`DFW/Tools/templates/RETROSPECTIVE-TEMPLATE.md`). This is distinct from the normal
+retrospective — it specifically asks why the failure happened and what systemic change
+would prevent it. The postmortem output feeds directly into CLAUDE.md updates and, where
+appropriate, playbook amendments.
+
+---
+
+## PATH D: ABANDONED
+
+**When**: The issue is being dropped entirely. It was reprioritised, became irrelevant, or
+the developer is leaving and the work will not be continued by anyone.
+
+This is not a failure — priorities change. What matters is that context is not silently
+discarded. A branch deleted without a closing commit is a P1 violation: the decisions
+made, approaches tried, and dead ends explored vanish with it.
+
+### Steps
+
+```bash
+# ── STEP 1: Write a closing commit ────────────────────────────────
+git add -A
+git commit -m "wip: abandon issue #42 — [reason]
+
+Session: S20260217_1400
+Issue: #42
+State: [what was done before abandoning — enough for someone to reconstruct]
+Reason: [why the issue is being dropped]
+Recommendation: [if future work should revisit this, say what and why]"
+
+# ── STEP 2: Push the branch ────────────────────────────────────────
+git push origin feature/42-auth-module
+# The branch stays on origin. The commit history is preserved.
+# A future developer can read the branch history even after the issue closes.
+
+# ── STEP 3: Close the issue in the tracker ──────────────────────────
+# Close as "won't fix" or "cancelled" — not "done"
+# Reference the branch in the closing comment:
+# "Work started on feature/42-auth-module (devA fork). See branch history for
+#  what was explored. Abandoned because [reason]."
+
+# ── STEP 4: Remove worktree if present ──────────────────────────────
+cd 02-Projects/RORI
+git worktree remove ../rori-42-auth
+
+# ── STEP 5: Write session journal entry ─────────────────────────────
+# Record what was learned even in the abandoned work — sunk cost is not the
+# same as lost learning. A dead end that is documented is a dead end that
+# the next developer doesn't have to rediscover.
+```
+
+### What to Do With the Branch After Pushing
+
+Do not delete the branch immediately. Leave it on the fork for at least one sprint cycle
+so teammates can reference it if needed. After that, deletion is fine — the commit history
+is preserved in the pushed branch record and in the issue's closing comment.
+
+If the abandoned work is substantial and might inform future issues, consider:
+- Tagging the branch or PR with a "reference" label in the tracker
+- Adding a brief entry to `CLAUDE.md` noting the dead end: what was tried and why it
+  didn't work. This turns an abandoned branch into a documented path-not-taken.
+
+---
+
+## Hotfix Path (Variant of PATH A)
+
+A hotfix follows PATH A with a compressed timeline. The key difference is the worktree isolation that allows the hotfix to happen without disrupting in-progress work.
+
+```bash
+# While mid-session on feature/42-auth-module:
+
+# 1. Save current state
+git add -A
+git commit -m "wip: interrupt for hotfix fix/51 — resuming after
+
+Session: S20260217_1400
+Issue: #42
+State: [current state]
+Interrupted by: fix/51-payment-null-check (urgent)"
+git push origin feature/42-auth-module
+
+# 2. Create hotfix worktree from synced main
+cd 02-Projects/RORI
+git fetch upstream && git checkout main && git merge upstream/main --ff-only
+git worktree add ../rori-51-hotfix -b fix/51-payment-null-check
+cd ../rori-51-hotfix && ./scripts/worktree-setup.sh
+
+# 3. Fix, commit cleanly (no wip commits), push
+git commit -m "fix(payments): guard against null customer ID on checkout
+...
+Session: S20260217_1530
+Issue: #51
+Phase: 3 - Implementation"
+git push origin fix/51-payment-null-check
+
+# 4. Open PR — mark as urgent in description
+# 5. Remove hotfix worktree
+cd 02-Projects/RORI
+git worktree remove ../rori-51-hotfix
+
+# 6. Resume original feature work — untouched
+cd ../rori-42-auth
+git log --oneline -3  # reload context
+```
+
+If the fix cannot be completed in one session, reclassify it as a priority issue in the normal queue. Hotfixes that span sessions are not hotfixes.
+
+---
+
+## The Context Lifecycle
+
+Every session is a rotation through a four-step context lifecycle. The git workflow in this document is the mechanical implementation of each step.
+
+```
+CAPTURE → ORGANIZE → FEED → PRUNE
+```
+
+| Step | What it means | Where it happens in git workflow |
+|------|--------------|----------------------------------|
+| **Capture** | Record decisions, state, and learnings before they disappear | `wip:` commit body (State/Next), journal entry, session retrospective |
+| **Organize** | Structure context so it's findable and feedable next session | Branch naming convention, `prompts/handoffs/`, Session History in PR description |
+| **Feed** | Load structured context back into AI agents at session start | Governance Stack load (CLAUDE.md + Constitution), handoff doc, wip commit body via `git log` |
+| **Prune** | Archive stale context so future sessions aren't contaminated | `prompts/handoffs/archive/` after COMPLETE, `git worktree prune`, squash wip commits before PR |
+
+The session-end checklist below is the operational implementation of Capture, Organize, and Prune. Feed happens at session *open* via the Governance Stack checklist at the top of this document.
+
+Context that isn't captured is lost. Context that isn't pruned becomes noise. Both failures degrade AI performance in future sessions — just in opposite directions.
+
+---
+
+## Session-End Checklist
+
+Run through this at the end of every session:
+
+```
+SESSION CLOSE CHECKLIST
+
+□ 1. Run tests / validation against acceptance criteria
+□ 2. Classify issue state: COMPLETE / CONTINUABLE / SCOPE CHANGED / ABANDONED
+
+If COMPLETE:
+  □ 3a. Copy wip commit notes to PR Session History (before squashing)
+  □ 4a. Squash wip commits: git rebase -i main
+  □ 5a. Push: git push origin [branch]
+  □ 6a. Open PR (use template in PR Conventions)
+  □ 7a. Remove worktree if applicable
+  □ 8a. Archive handoff docs for this branch → prompts/handoffs/archive/
+
+If CONTINUABLE:
+  □ 3b. Write wip commit with full State/Next context
+  □ 4b. Push: git push origin [branch]
+  □ 5b. Write resume handoff (or cross-dev handoff if passing to teammate)
+        Note: Claude Code needs BOTH the wip commit body AND this handoff doc
+
+If SCOPE CHANGED:
+  □ 3c. Write wip commit with rationale + decomposition summary
+  □ 4c. Push: git push origin [branch]
+  □ 5c. Create child issues in tracker
+  □ 6c. Write decompose handoff
+  □ 7c. Remove worktree if applicable
+
+Always:
+  □ 9.  Run DFW Doctor (using the current DFW checklist/process)
+        Four checks: Project Health / Session Health / Governance Health / Retrospective Health
+        Copy scorecard into journal close — PASS or FAIL with deferred items noted
+  □ 10. Update your personal session journal (see your team journal template)
+  □ 11. Write session retrospective (using the current DFW retrospective format)
+  □ 12. Update plans/_TODO.md (mark complete, add new issues discovered)
+  □ 13. Review active worktrees: git worktree list
+        Prune stale: git worktree prune
+  □ 14. Check stale branch threshold: is any open branch on session 3+?
+        If yes: add retrospective note explaining why
+```
+
+---
+
+## Flywheel Connection
+
+The four-path classification (COMPLETE / CONTINUABLE / SCOPE CHANGED / ABANDONED) is where the DFW learning loop closes most visibly. Every rotation through the Context Lifecycle — Capture, Organize, Feed, Prune — adds a small increment of retained context that compounds across sessions.
+
+This workflow contributes to all three DFW value dimensions simultaneously:
+
+- **Output**: Handoffs persist as reusable templates. Session History in PRs becomes searchable architectural precedent. Every SCOPE CHANGED rationale is a planning input the team never has to regenerate.
+- **Quality**: The DFW Doctor gate at session CLOSE means every session close is a structured validation pass. SPEC rules checked at commit time shift quality assurance left — catching drift before it reaches PR review.
+- **Velocity**: The Governance Stack load at session open means AI agents start from full context, not a blank slate. The Prune step keeps that context clean so future sessions don’t wade through stale data.
+
+Over time, a team can query their own history — `git log --grep="scope decomposed"` — and read exactly how their estimation accuracy evolved. The session-end workflow is the mechanism by which individual session experience becomes team institutional memory.
+
+---
+
+## Related Documents
+- [Commit Conventions](/git-collaboration/commit-conventions) — format of wip and resume commits
+- [Branch Strategy](/git-collaboration/branch-strategy) — branch lifecycle this decision tree drives
+- [PR Conventions](/git-collaboration/pr-conventions) — how COMPLETE path produces a PR
+- `DFW/Tools/templates/PROTOCOL-cross-dev-handoff.md` — handoff format for CONTINUABLE when passing to a teammate
