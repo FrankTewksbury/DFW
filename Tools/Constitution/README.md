@@ -10,7 +10,8 @@ The constitution is split into three composable files:
 |------|---------|-------------------|
 | `CLAUDE.md` | Principles (P1-P9), behavioral rules, file safety, scope rules, project init, bootstrap | Rarely — amendments only |
 | `DFW-OPERATING-MANUAL.md` (in `Manuals/`) | Full methodology: tagging, session lifecycle, handoffs, sequencing, journals, flywheel effect | Evolves with methodology |
-| `personal-config-template.md` | Environment-specific: paths, tool mappings, drive aliases, MCP roots, project registry | Per machine/user |
+| `personal-config-template.md` | Human-readable environment notes: paths, tool mappings, drive aliases, MCP roots, project registry | Per machine/user |
+| `runtime-template.json` | Machine-readable session config: canonical paths, launcher defaults, agent commands | Per project/environment |
 
 ## Files in This Directory
 
@@ -20,6 +21,7 @@ The constitution is split into three composable files:
 | `CLAUDE-GLOBAL.md` | Global template | `~/.claude/CLAUDE.md` (one-time setup) |
 | `CLAUDE-PROJECT-TEMPLATE.md` | Per-project template | `<project>/CLAUDE.md` (during scaffold) |
 | `personal-config-template.md` | Environment config template | `<project>/.dfw/personal-config.md` (during scaffold, NOT committed) |
+| `runtime-template.json` | Runtime session config template | `<project>/.dfw/runtime.json` (during scaffold) |
 | `DFW-GLOSSARY.md` | Terminology reference | `<project>/docs/DFW-GLOSSARY.md` |
 
 ## Setup
@@ -33,6 +35,7 @@ cp Constitution/CLAUDE-GLOBAL.md ~/.claude/CLAUDE.md
 The DFW Extension `DFW: New Project` copies:
 - `CLAUDE-PROJECT-TEMPLATE.md` → `<project>/CLAUDE.md`
 - `personal-config-template.md` → `<project>/.dfw/personal-config.md`
+- `runtime-template.json` → `<project>/.dfw/runtime.json`
 - `DFW-GLOSSARY.md` → `<project>/docs/DFW-GLOSSARY.md`
 - `DFW-OPERATING-MANUAL.md` → `<project>/docs/DFW-OPERATING-MANUAL.md`
 
@@ -40,6 +43,7 @@ The DFW Extension `DFW: New Project` copies:
 ```bash
 cp Constitution/CLAUDE-PROJECT-TEMPLATE.md <project>/CLAUDE.md
 cp Constitution/personal-config-template.md <project>/.dfw/personal-config.md
+cp Constitution/runtime-template.json <project>/.dfw/runtime.json
 cp Constitution/DFW-GLOSSARY.md <project>/docs/DFW-GLOSSARY.md
 cp Manuals/DFW-OPERATING-MANUAL.md <project>/docs/DFW-OPERATING-MANUAL.md
 ```

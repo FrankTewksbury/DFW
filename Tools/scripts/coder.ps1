@@ -391,6 +391,7 @@ try {
     [System.Environment]::SetEnvironmentVariable('DFW_CANONICAL_PATH_MODE', $CanonicalPath, 'Process')
     [System.Environment]::SetEnvironmentVariable('DFW_LOG_FILE', $sessionLogPath, 'Process')
     [System.Environment]::SetEnvironmentVariable('DFW_PERSONA', $persona, 'Process')
+    [System.Environment]::SetEnvironmentVariable('DFW_RUNTIME_CONFIG', $runtimeConfigPath, 'Process')
     [System.Environment]::SetEnvironmentVariable('DFW_SESSION_NOTE', $SessionNote, 'Process')
 
     if (-not $SkipEnv) {

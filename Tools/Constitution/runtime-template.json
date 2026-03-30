@@ -1,0 +1,33 @@
+{
+  "projectName": "{{PROJECT_NAME}}",
+  "persona": "{{PERSONA}}",
+  "paths": {
+    "projectRootReal": "{{PROJECT_PATH_REAL}}",
+    "projectRootAlias": "{{PROJECT_PATH_ALIAS}}",
+    "hostRootReal": "{{DFW_ROOT_REAL}}",
+    "hostRootAlias": "{{DFW_ROOT_ALIAS}}",
+    "vaultRootReal": "{{VAULT_PATH_REAL}}",
+    "vaultRootAlias": "{{VAULT_PATH_ALIAS}}",
+    "wslProjectRoot": "{{WSL_PROJECT_ROOT}}"
+  },
+  "launch": {
+    "defaultAgent": "codex",
+    "defaultMode": "interactive",
+    "defaultAutonomyLevel": "safe-write",
+    "canonicalPath": "real",
+    "logFile": ".dfw\\logs\\coder.log",
+    "editor": "code",
+    "commands": {
+      "codex": {
+        "exe": "codex",
+        "args": [
+          "start"
+        ]
+      },
+      "claude": {
+        "exe": "claude",
+        "args": []
+      }
+    }
+  }
+}

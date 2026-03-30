@@ -24,7 +24,24 @@
 
 ---
 
-## 2. The Three-Tier Scope Model
+## 2. Runtime Host Root and Scope Model
+
+Before applying the three-tier scope model, agents must understand the DFW environment boundary.
+
+### 2.1 Runtime Host Root
+
+In the standard DFW layout, `X:\DFW` is the **Runtime Host Root**. It is the top-level environment container that holds four distinct layers:
+
+| Layer | Role |
+|------|------|
+| `X:\DFW` root | Runtime Host Root — bootstrap scripts, host docs, config examples |
+| `X:\DFW\DFWP` | Methodology Project — active DFW process evolution work |
+| `X:\DFW\Tools` | Canonical Distribution Layer — constitutions, manuals, rules, templates, scripts |
+| `X:\DFW\Vault` | Global Memory Layer — journals, registry, cross-project memory |
+
+Agents MUST NOT assume that the host root and the methodology project are the same thing.
+
+### 2.2 The Three-Tier Scope Model
 
 All work exists at one of three scope levels. The scope level determines where artifacts live, which rules apply, and how context flows.
 
@@ -180,6 +197,23 @@ A handoff MUST include:
 
 Handoffs live in `prompts/handoffs/` with the naming pattern: `YYYY-MM-DD_<slug>-handoff.md`
 
+### Team Collaboration Mode (Optional)
+
+For projects with multiple human contributors, DFW can be extended with an optional **Team Collaboration Mode**.
+
+This mode adds:
+- cross-developer handoff guidance
+- optional GitHub PR and issue templates
+- an explicit human-boundary continuity rule
+- optional session-close git state classification (`COMPLETE`, `CONTINUABLE`, `SCOPE CHANGED`, `ABANDONED`)
+
+This mode does **not** change the core DFW ownership model:
+- project files remain execution context
+- the vault remains the global memory layer
+- GitHub remains the review/history boundary
+
+When Team Collaboration Mode is active and unfinished work changes human owners, write a cross-developer handoff alongside the normal project handoff artifacts.
+
 ---
 
 ## 7. Fit-for-Purpose Tool Assignments
@@ -209,6 +243,15 @@ Every working session follows this pattern. All agents MUST follow this regardle
 6. Read `plans/_TODO.md` — understand priorities and active tasks
 7. Understand current state before doing anything
 
+**Default coding-agent read packet:** When the task is implementation-focused, prefer the smallest sufficient startup packet:
+- local model/instruction file
+- `context/_ACTIVE_CONTEXT.md`
+- `plans/_TODO.md`
+- latest relevant handoff
+- only the specific canonical DFW document needed for the task
+
+Do not load broad vault or methodology context by default unless the task is planning, research, governance, or methodology work.
+
 **WORK:**
 8. Execute against the plan
 9. Persist all artifacts to the correct DFW directories (see Section 3)
@@ -224,12 +267,15 @@ Every working session follows this pattern. All agents MUST follow this regardle
 15. If significant work: create or suggest a journal entry in the Obsidian vault
 16. If tool transition needed: write a handoff to `prompts/handoffs/`
 17. If a state file exists and all steps are complete, archive it (see Section 19)
+18. Optional Team Collaboration Mode close step:
+    - classify the branch/session state as `COMPLETE`, `CONTINUABLE`, `SCOPE CHANGED`, or `ABANDONED`
+    - if unfinished work is changing human owners, write a cross-developer handoff
 
 **FLYWHEEL FEEDBACK:**
-18. Did we hit methodology friction? → Tag `#source/dfw-feedback #route/dfw`
-19. Did ambiguity arise? → Already auto-routed via `#source/ambiguity #route/dfw` (step 11)
-20. Did a rule fail or prove insufficient? → Propose an amendment with rationale
-21. Did we discover a reusable pattern? → Capture it as a skill
+19. Did we hit methodology friction? → Tag `#source/dfw-feedback #route/dfw`
+20. Did ambiguity arise? → Already auto-routed via `#source/ambiguity #route/dfw` (step 11)
+21. Did a rule fail or prove insufficient? → Propose an amendment with rationale
+22. Did we discover a reusable pattern? → Capture it as a skill
 
 ---
 
@@ -567,6 +613,35 @@ Read the template at `X:\DFW\Tools\Constitution\personal-config-template.md` and
 
 > Template source: `X:\DFW\Tools\Constitution\personal-config-template.md`
 ```
+
+### Step 4A: Generate `.dfw/runtime.json`
+
+Read the template at `X:\DFW\Tools\Constitution\runtime-template.json` and fill in the values:
+
+```json
+{
+  "projectName": "<project-name>",
+  "persona": "<persona>",
+  "paths": {
+    "projectRootReal": "<real-project-path>",
+    "projectRootAlias": "<alias-project-path-or-empty>",
+    "hostRootReal": "<real-dfw-root>",
+    "hostRootAlias": "<alias-dfw-root-or-empty>",
+    "vaultRootReal": "<real-vault-path>",
+    "vaultRootAlias": "<alias-vault-path-or-empty>",
+    "wslProjectRoot": "<wsl-project-path-or-empty>"
+  },
+  "launch": {
+    "defaultAgent": "codex",
+    "defaultMode": "interactive",
+    "defaultAutonomyLevel": "safe-write",
+    "canonicalPath": "real",
+    "logFile": ".dfw\\logs\\coder.log"
+  }
+}
+```
+
+Use this file as the machine-readable runtime/session source of truth. `coder.ps1` should read it and then export transient `DFW_*` environment variables for the launched session.
 
 ### Step 5: Copy Files from `X:\DFW\Tools`
 
@@ -1037,3 +1112,7 @@ The same pattern applies to any multi-step operation. Adjust the `operation` fie
 > **End of DFW Operating Manual.**
 > This is a living document. It evolves alongside `CLAUDE.md` through the DFW amendment process.
 > When methodology friction is found, tag it `#source/dfw-feedback #route/dfw`.
+
+
+
+

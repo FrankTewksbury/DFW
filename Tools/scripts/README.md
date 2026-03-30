@@ -54,11 +54,26 @@ Generic DFW session launcher for either Codex or Claude.
 ### Behavior
 
 - Normalizes alias paths to real filesystem paths before execution.
-- Loads `.dfw\runtime.json` when present.
+- Treats `.dfw\runtime.json` as the preferred machine-readable session config when present.
 - Exports `DFW_*` session environment variables for downstream tools.
 - Loads `.env` into the process environment without printing secret values.
 - Makes dependency installation opt-in via `-InstallDeps`.
 - Keeps `codexp.ps1` as a compatibility wrapper for Codex-only launches.
+
+### Runtime Config
+
+`coder.ps1` is designed to read defaults from `<project>/.dfw/runtime.json`.
+
+That file should hold:
+- canonical real paths
+- optional alias paths
+- optional WSL path
+- default agent
+- default mode and autonomy
+- log-file location
+- agent command overrides
+
+The launcher then exports those values as transient `DFW_*` environment variables for the session it starts.
 
 
 

@@ -175,6 +175,84 @@ if ((Test-Path $pcTemplateSrc) -and (-not (Test-Path $pcDest) -or $Force)) {
     Write-Host "  Generated: .dfw/personal-config.md" -ForegroundColor Green
 }
 
+# --- Step 4.5: Generate runtime.json from template ---
+Write-Host '  Generating runtime.json...' -ForegroundColor Gray
+
+function Get-SubstMap {
+    $map = @{}
+
+    try {
+        $lines = cmd /c subst 2>$null
+        foreach ($line in $lines) {
+            if ($line -match '^(?<drive>[A-Z]:)\\: => (?<path>.+)$') {
+                $map[$Matches.drive] = $Matches.path.TrimEnd('\')
+            }
+        }
+    } catch {
+    }
+
+    return $map
+}
+
+function Convert-RealPathToAlias {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [hashtable]$SubstMap
+    )
+
+    foreach ($drive in $SubstMap.Keys) {
+        $realRoot = $SubstMap[$drive]
+        if ($Path.StartsWith($realRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return $drive + $Path.Substring($realRoot.Length)
+        }
+    }
+
+    return ''
+}
+
+function Convert-WindowsPathToWsl {
+    param([string]$Path)
+
+    if ($Path -match '^(?<drive>[A-Za-z]):\\(?<rest>.*)$') {
+        $drive = $Matches.drive.ToLowerInvariant()
+        $rest = $Matches.rest -replace '\\', '/'
+        if ([string]::IsNullOrWhiteSpace($rest)) {
+            return "/mnt/$drive"
+        }
+        return "/mnt/$drive/$rest"
+    }
+
+    return ''
+}
+
+$runtimeTemplateSrc = Join-Path $ToolsPath 'Constitution\runtime-template.json'
+$runtimeDest = Join-Path $ProjectPath '.dfw\runtime.json'
+
+if ((Test-Path $runtimeTemplateSrc) -and (-not (Test-Path $runtimeDest) -or $Force)) {
+    $substMap = Get-SubstMap
+    $projectPathReal = [System.IO.Path]::GetFullPath($ProjectPath)
+    $dfwRootReal = [System.IO.Path]::GetFullPath($DFWRoot)
+    $vaultPathReal = [System.IO.Path]::GetFullPath((Join-Path $DFWRoot 'Vault'))
+    $projectPathAlias = Convert-RealPathToAlias -Path $projectPathReal -SubstMap $substMap
+    $dfwRootAlias = Convert-RealPathToAlias -Path $dfwRootReal -SubstMap $substMap
+    $vaultPathAlias = Convert-RealPathToAlias -Path $vaultPathReal -SubstMap $substMap
+    $projectName = Split-Path -Path $projectPathReal -Leaf
+
+    $runtimeContent = Get-Content -Path $runtimeTemplateSrc -Raw
+    $runtimeContent = $runtimeContent -replace '\{\{PROJECT_NAME\}\}', $projectName.ToLowerInvariant()
+    $runtimeContent = $runtimeContent -replace '\{\{PERSONA\}\}', 'Donna'
+    $runtimeContent = $runtimeContent -replace '\{\{PROJECT_PATH_REAL\}\}', $projectPathReal
+    $runtimeContent = $runtimeContent -replace '\{\{PROJECT_PATH_ALIAS\}\}', $projectPathAlias
+    $runtimeContent = $runtimeContent -replace '\{\{DFW_ROOT_REAL\}\}', $dfwRootReal
+    $runtimeContent = $runtimeContent -replace '\{\{DFW_ROOT_ALIAS\}\}', $dfwRootAlias
+    $runtimeContent = $runtimeContent -replace '\{\{VAULT_PATH_REAL\}\}', $vaultPathReal
+    $runtimeContent = $runtimeContent -replace '\{\{VAULT_PATH_ALIAS\}\}', $vaultPathAlias
+    $runtimeContent = $runtimeContent -replace '\{\{WSL_PROJECT_ROOT\}\}', (Convert-WindowsPathToWsl -Path $projectPathReal)
+    Set-Content -Path $runtimeDest -Value $runtimeContent -NoNewline
+    Write-Host "  Generated: .dfw/runtime.json" -ForegroundColor Green
+}
+
 # --- Step 5: Copy Cursor rules ---
 Write-Host '  Copying Cursor rules...' -ForegroundColor Gray
 

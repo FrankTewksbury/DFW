@@ -12,6 +12,7 @@ X:\DFW\Tools\
 │   ├── DFW-GLOSSARY.md            # Terminology reference
 │   ├── personal-config.md         # Frank's config (.gitignored)
 │   ├── personal-config-template.md # Environment config template
+│   ├── runtime-template.json      # Machine-readable launcher/runtime template
 │   └── archive/                   # Archived versions
 ├── Model\                         # Model-specific agent entry points
 │   ├── CLAUDE.md                  # Claude-specific: refs constitution + Claude bootstrap
@@ -46,6 +47,7 @@ X:\DFW\Tools\
 ### New Project (via DFW Extension)
 1. Run `DFW: New Project` in Cursor
 2. The scaffolder copies from this repo: model file, constitution, operating manual, rules, scripts
+3. The scaffolder generates `.dfw/runtime.json` so launcher defaults and canonical paths live in a machine-readable file instead of shell-only environment state
 
 ### Sync Existing Project
 1. Run `DFW: Sync Tools` in Cursor
