@@ -55,6 +55,7 @@ Generic DFW session launcher for either Codex or Claude.
 
 - Normalizes alias paths to real filesystem paths before execution.
 - Treats `.dfw\runtime.json` as the preferred machine-readable session config when present.
+- Prompts to create `.dfw\runtime.json` from the DFW template when a project does not have one yet.
 - Exports `DFW_*` session environment variables for downstream tools.
 - Loads `.env` into the process environment without printing secret values.
 - Makes dependency installation opt-in via `-InstallDeps`.

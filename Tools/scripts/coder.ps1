@@ -91,6 +91,80 @@ function Read-JsonFile {
     return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
 }
 
+function Convert-RealPathToAlias {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$Path,
+        [hashtable]$SubstMap
+    )
+
+    foreach ($drive in $SubstMap.Keys) {
+        $realRoot = $SubstMap[$drive].TrimEnd('\')
+        if ($Path.StartsWith($realRoot, [System.StringComparison]::OrdinalIgnoreCase)) {
+            return $drive + $Path.Substring($realRoot.Length)
+        }
+    }
+
+    return ''
+}
+
+function Convert-WindowsPathToWsl {
+    param([string]$Path)
+
+    if ($Path -match '^(?<drive>[A-Za-z]):\\(?<rest>.*)$') {
+        $drive = $Matches.drive.ToLowerInvariant()
+        $rest = $Matches.rest -replace '\\', '/'
+        if ([string]::IsNullOrWhiteSpace($rest)) {
+            return "/mnt/$drive"
+        }
+
+        return "/mnt/$drive/$rest"
+    }
+
+    return ''
+}
+
+function New-RuntimeConfigFromTemplate {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectRootReal,
+        [Parameter(Mandatory = $true)]
+        [string]$RuntimeConfigPath,
+        [string]$ProjectName,
+        [string]$Persona,
+        [hashtable]$SubstMap
+    )
+
+    $templatePath = Join-Path (Split-Path -Path $PSScriptRoot -Parent) 'Constitution\runtime-template.json'
+    if (-not (Test-Path -LiteralPath $templatePath)) {
+        throw "Runtime template not found: $templatePath"
+    }
+
+    $projectRootReal = [System.IO.Path]::GetFullPath($ProjectRootReal)
+    $dfwRootReal = [System.IO.Path]::GetFullPath((Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent))
+    $vaultRootReal = Join-Path $dfwRootReal 'Vault'
+    $projectRootAlias = Convert-RealPathToAlias -Path $projectRootReal -SubstMap $SubstMap
+    $dfwRootAlias = Convert-RealPathToAlias -Path $dfwRootReal -SubstMap $SubstMap
+    $vaultRootAlias = Convert-RealPathToAlias -Path $vaultRootReal -SubstMap $SubstMap
+    $runtimeContent = Get-Content -LiteralPath $templatePath -Raw
+    $runtimeContent = $runtimeContent -replace '\{\{PROJECT_NAME\}\}', $ProjectName
+    $runtimeContent = $runtimeContent -replace '\{\{PERSONA\}\}', $Persona
+    $runtimeContent = $runtimeContent -replace '\{\{PROJECT_PATH_REAL\}\}', $projectRootReal
+    $runtimeContent = $runtimeContent -replace '\{\{PROJECT_PATH_ALIAS\}\}', $projectRootAlias
+    $runtimeContent = $runtimeContent -replace '\{\{DFW_ROOT_REAL\}\}', $dfwRootReal
+    $runtimeContent = $runtimeContent -replace '\{\{DFW_ROOT_ALIAS\}\}', $dfwRootAlias
+    $runtimeContent = $runtimeContent -replace '\{\{VAULT_PATH_REAL\}\}', $vaultRootReal
+    $runtimeContent = $runtimeContent -replace '\{\{VAULT_PATH_ALIAS\}\}', $vaultRootAlias
+    $runtimeContent = $runtimeContent -replace '\{\{WSL_PROJECT_ROOT\}\}', (Convert-WindowsPathToWsl -Path $projectRootReal)
+
+    $runtimeDirectory = Split-Path -Path $RuntimeConfigPath -Parent
+    if ($runtimeDirectory) {
+        New-Item -ItemType Directory -Force -Path $runtimeDirectory | Out-Null
+    }
+
+    Set-Content -LiteralPath $RuntimeConfigPath -Value $runtimeContent -Encoding utf8
+}
+
 function Convert-ToRealPath {
     param(
         [Parameter(Mandatory = $true)]
@@ -315,6 +389,28 @@ try {
 
     $projectJsonPath = Find-UpwardFile -StartPath $resolvedTargetDir -RelativePath '.dfw\project.json'
     $projectConfig = Read-JsonFile -Path $projectJsonPath
+    $projectRootByJson = if ($projectJsonPath) { Get-ProjectRootFromProjectJson -ProjectJsonPath $projectJsonPath } else { $resolvedTargetDir }
+    $agentsPersona = Get-PersonaName -ProjectRoot $projectRootByJson
+
+    if (-not $runtime) {
+        $runtimeConfigPath = Join-Path $projectRootByJson '.dfw\runtime.json'
+        Write-Warning "No .dfw/runtime.json found for this project."
+        $createRuntime = Read-Host "Create runtime config now at $runtimeConfigPath ? [Y/n]"
+        if ([string]::IsNullOrWhiteSpace($createRuntime) -or $createRuntime -match '^(y|yes)$') {
+            $suggestedProjectName = if ($projectConfig -and $projectConfig.name) {
+                [string]$projectConfig.name
+            } else {
+                (Split-Path -Path $projectRootByJson -Leaf).ToLowerInvariant()
+            }
+            $suggestedPersona = if ($agentsPersona) { $agentsPersona } else { 'Donna' }
+            New-RuntimeConfigFromTemplate -ProjectRootReal $projectRootByJson -RuntimeConfigPath $runtimeConfigPath -ProjectName $suggestedProjectName -Persona $suggestedPersona -SubstMap $substMap
+            $runtime = Read-JsonFile -Path $runtimeConfigPath
+            Write-Host "Created runtime config: $runtimeConfigPath" -ForegroundColor Green
+        } else {
+            Write-Warning 'Continuing without .dfw/runtime.json; inferred defaults will be used for this session.'
+        }
+    }
+
     $projectRootReal = if ($runtime -and $runtime.paths -and $runtime.paths.projectRootReal) {
         [string]$runtime.paths.projectRootReal
     } elseif ($projectJsonPath) {
@@ -353,7 +449,7 @@ try {
     $persona = if ($runtime -and $runtime.persona) {
         [string]$runtime.persona
     } else {
-        Get-PersonaName -ProjectRoot $projectRootReal
+        $agentsPersona
     }
 
     $hostRootReal = if ($runtime -and $runtime.paths -and $runtime.paths.hostRootReal) { [string]$runtime.paths.hostRootReal } else { $env:DFW_HOST_ROOT_REAL }
