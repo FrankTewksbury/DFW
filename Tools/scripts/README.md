@@ -33,3 +33,32 @@ The script classifies `.md` files by name into: **retrospective**, **journal**, 
 ### Front matter (optional)
 
 In YAML front matter, the script reads `source_prompt`, `created`, `description`, `phase`, `iteration`, etc. Use `phase: 2` or `iteration: 1` for filtering in Obsidian/Claude.
+
+## coder.ps1
+
+Generic DFW session launcher for either Codex or Claude.
+
+### Examples
+
+```powershell
+# Launch Codex from a project root
+.\coder.ps1 -TargetDir "X:\K4X" -Agent codex
+
+# Launch Claude with an explicit autonomous session contract
+.\coder.ps1 -TargetDir "X:\K4X" -Agent claude -Mode autonomous -AutonomyLevel safe-write
+
+# Backward-compatible Codex shim
+.\codexp.ps1 -TargetDir "X:\K4X"
+```
+
+### Behavior
+
+- Normalizes alias paths to real filesystem paths before execution.
+- Loads `.dfw\runtime.json` when present.
+- Exports `DFW_*` session environment variables for downstream tools.
+- Loads `.env` into the process environment without printing secret values.
+- Makes dependency installation opt-in via `-InstallDeps`.
+- Keeps `codexp.ps1` as a compatibility wrapper for Codex-only launches.
+
+
+
