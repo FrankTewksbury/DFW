@@ -123,9 +123,10 @@ Write-Host ''
 Write-Host '--- Validating DFW installation ---' -ForegroundColor Gray
 
 $requiredFiles = @(
-    (Join-Path $ToolsPath 'Constitution\DFW-CONSTITUTION.md'),
+    (Join-Path $ToolsPath 'Constitution\DFW-PROJECT-CONSTITUTION.md'),
     (Join-Path $ToolsPath 'Manuals\DFW-OPERATING-MANUAL.md'),
     (Join-Path $ToolsPath 'Constitution\CLAUDE-PROJECT-TEMPLATE.md'),
+    (Join-Path $ToolsPath 'templates\AGENTS-PROJECT-TEMPLATE.md'),
     (Join-Path $ToolsPath 'templates\vault\.obsidian\community-plugins.json'),
     (Join-Path $ToolsPath 'templates\dfwp\.dfw\project.json')
 )
@@ -256,6 +257,6 @@ Write-Host '  FULL SETUP GUIDE:' -ForegroundColor White
 Write-Host "    $DFWRoot\Tools\docs\SETUP-GUIDE.md" -ForegroundColor Cyan
 Write-Host ''
 Write-Host '  KEY DOCS:' -ForegroundColor White
-Write-Host "    Constitution: $ProjectPath\docs\DFW-CONSTITUTION.md" -ForegroundColor Gray
-Write-Host "    Manual:       $ProjectPath\docs\DFW-OPERATING-MANUAL.md" -ForegroundColor Gray
+Write-Host "    Project Constitution: $ProjectPath\docs\DFW-PROJECT-CONSTITUTION.md" -ForegroundColor Gray
+Write-Host "    Manual:               $ProjectPath\docs\DFW-OPERATING-MANUAL.md" -ForegroundColor Gray
 Write-Host ''

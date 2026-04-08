@@ -121,7 +121,7 @@ if (-not (Test-Path $docsDir)) {
 }
 
 $docsToCopy = @(
-    @{ Src = 'Constitution\DFW-CONSTITUTION.md'; Dest = 'docs\DFW-CONSTITUTION.md' },
+    @{ Src = 'Constitution\DFW-PROJECT-CONSTITUTION.md'; Dest = 'docs\DFW-PROJECT-CONSTITUTION.md' },
     @{ Src = 'Manuals\DFW-OPERATING-MANUAL.md'; Dest = 'docs\DFW-OPERATING-MANUAL.md' },
     @{ Src = 'Constitution\DFW-GLOSSARY.md'; Dest = 'docs\DFW-GLOSSARY.md' }
 )
@@ -149,14 +149,43 @@ Write-Host '  Setting up CLAUDE.md...' -ForegroundColor Gray
 
 $claudeTemplateSrc = Join-Path $ToolsPath 'Constitution\CLAUDE-PROJECT-TEMPLATE.md'
 $claudeDest = Join-Path $ProjectPath 'CLAUDE.md'
+$projectName = Split-Path $ProjectPath -Leaf
 
 if ((Test-Path $claudeTemplateSrc) -and (-not (Test-Path $claudeDest) -or $Force)) {
     $claudeContent = Get-Content -Path $claudeTemplateSrc -Raw
+    $claudeContent = $claudeContent -replace '\{\{PROJECT_NAME\}\}', $projectName
     $claudeContent = $claudeContent -replace '\{\{PROJECT_PATH\}\}', $ProjectPath
     $claudeContent = $claudeContent -replace '\{\{DFW_ROOT\}\}', $DFWRoot
+    $claudeContent = $claudeContent -replace '\{\{PID\}\}', $ProjectID
+    $claudeContent = $claudeContent -replace '\{\{PERSONA\}\}', 'Donna'
     $claudeContent = $claudeContent -replace '\{\{SUB_PROJECTS\}\}', 'None'
     Set-Content -Path $claudeDest -Value $claudeContent -NoNewline
     Write-Host "  Created: CLAUDE.md (with project paths)" -ForegroundColor Green
+}
+
+# --- Step 3.5: Copy AGENTS.md from template with variable substitution ---
+Write-Host '  Setting up AGENTS.md...' -ForegroundColor Gray
+
+$agentsTemplateSrc = Join-Path $ToolsPath 'templates\AGENTS-PROJECT-TEMPLATE.md'
+$agentsDest = Join-Path $ProjectPath 'AGENTS.md'
+$projectSlug = $projectName.ToLowerInvariant() -replace '[^a-z0-9]', '-'
+
+if ((Test-Path $agentsTemplateSrc) -and (-not (Test-Path $agentsDest) -or $Force)) {
+    $agentsContent = Get-Content -Path $agentsTemplateSrc -Raw
+    $agentsContent = $agentsContent -replace '\{\{PROJECT_NAME\}\}', $projectName
+    $agentsContent = $agentsContent -replace '\{\{PROJECT_PATH\}\}', $ProjectPath
+    $agentsContent = $agentsContent -replace '\{\{DFW_ROOT\}\}', $DFWRoot
+    $agentsContent = $agentsContent -replace '\{\{PID\}\}', $ProjectID
+    $agentsContent = $agentsContent -replace '\{\{PERSONA\}\}', 'Donna'
+    $agentsContent = $agentsContent -replace '\{\{PROJECT_SLUG\}\}', $projectSlug
+    $agentsContent = $agentsContent -replace '\{\{SUB_PROJECTS\}\}', 'None'
+    $agentsContent = $agentsContent -replace '\{\{RELATED_PROJECTS\}\}', 'None'
+    $agentsContent = $agentsContent -replace '\{\{STACK_SUMMARY\}\}', 'TBD'
+    $agentsContent = $agentsContent -replace '\{\{PROJECT_TYPE\}\}', 'TBD'
+    Set-Content -Path $agentsDest -Value $agentsContent -NoNewline
+    Write-Host "  Created: AGENTS.md (with project identity)" -ForegroundColor Green
+} elseif (-not (Test-Path $agentsTemplateSrc)) {
+    Write-Host "  Warning: AGENTS-PROJECT-TEMPLATE.md not found at $agentsTemplateSrc" -ForegroundColor Yellow
 }
 
 # --- Step 4: Generate personal-config from template ---
