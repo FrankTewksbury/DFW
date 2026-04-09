@@ -1,7 +1,7 @@
-[CmdletBinding()]
+[CmdletBinding(DefaultParameterSetName = 'Run')]
 param(
-    [Parameter(Mandatory = $true, Position = 0)]
-    [string]$TargetDir,
+    [Parameter(Position = 0, ParameterSetName = 'Run')]
+    [string]$TargetDir = (Get-Location).Path,
 
     [ValidateSet('codex', 'claude')]
     [string]$Agent,
@@ -18,6 +18,11 @@ param(
     [string]$CanonicalPath,
 
     [string]$RuntimeConfig,
+
+    [switch]$God,
+
+    [Parameter(ParameterSetName = 'Help')]
+    [switch]$Help,
 
     [switch]$InstallDeps,
 
@@ -37,20 +42,56 @@ param(
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
 
-function Get-SubstMap {
-    $map = @{}
+. (Join-Path $PSScriptRoot 'DFW-Helpers.ps1')
 
-    try {
-        $lines = cmd /c subst 2>$null
-        foreach ($line in $lines) {
-            if ($line -match '^(?<drive>[A-Z]:)\\: => (?<path>.+)$') {
-                $map[$Matches.drive] = $Matches.path.Trim()
-            }
-        }
-    } catch {
-    }
-
-    return $map
+# --- Help ---
+if ($Help) {
+    Write-Host ''
+    Write-Host 'coder.ps1  DFW Session Launcher' -ForegroundColor Cyan
+    Write-Host 'Usage: .\coder.ps1 -TargetDir PATH [options]' -ForegroundColor Cyan
+    Write-Host ''
+    Write-Host 'REQUIRED' -ForegroundColor Yellow
+    Write-Host '  -TargetDir PATH           Project directory to launch the agent in.'
+    Write-Host ''
+    Write-Host 'AGENT' -ForegroundColor Yellow
+    Write-Host '  -Agent (codex|claude)     Which agent to launch. Default: from runtime.json, else codex.'
+    Write-Host '  -AgentArgs ARGS           Extra arguments passed directly to the agent executable.'
+    Write-Host ''
+    Write-Host 'SESSION MODE' -ForegroundColor Yellow
+    Write-Host '  -Mode (interactive|autonomous)'
+    Write-Host '                            Session mode. Default: interactive.'
+    Write-Host '  -AutonomyLevel (read|safe-write|full-local)'
+    Write-Host '                            Autonomy tier for the session. Default: safe-write.'
+    Write-Host '  -God                      GOD MODE. Skips all permission prompts.' -ForegroundColor Red
+    Write-Host '                            Passes --dangerously-skip-permissions (Claude) or --full-auto (Codex).' -ForegroundColor Red
+    Write-Host '                            Use with intent. There is no undo.' -ForegroundColor Red
+    Write-Host ''
+    Write-Host 'PATH' -ForegroundColor Yellow
+    Write-Host '  -CanonicalPath (real|alias)'
+    Write-Host '                            Display real paths or subst-alias paths. Default: real.'
+    Write-Host '  -RuntimeConfig PATH       Explicit path to .dfw\runtime.json. Auto-discovered if omitted.'
+    Write-Host ''
+    Write-Host 'ENVIRONMENT' -ForegroundColor Yellow
+    Write-Host '  -SkipEnv                  Skip loading .env into session environment.'
+    Write-Host '  -InstallDeps              Run npm install if node_modules is missing.'
+    Write-Host '  -ActivateVenv             Activate .venv\Scripts\Activate.ps1 if present.'
+    Write-Host ''
+    Write-Host 'TERMINAL' -ForegroundColor Yellow
+    Write-Host '  -NoPanes                  Skip Windows Terminal split panes (log tail + editor).'
+    Write-Host '  -NoEditor                 Skip VS Code pane (log tail pane still opens).'
+    Write-Host ''
+    Write-Host 'LOGGING' -ForegroundColor Yellow
+    Write-Host '  -LogFile PATH             Log path relative to TargetDir. Default: .dfw\logs\coder.log'
+    Write-Host '  -SessionNote TEXT         Freeform note appended to the log entry for this session.'
+    Write-Host ''
+    Write-Host 'EXAMPLES' -ForegroundColor Yellow
+    Write-Host '  .\coder.ps1 -TargetDir <ProjectDir>'
+    Write-Host '  .\coder.ps1 -TargetDir <ProjectDir> -Agent claude'
+    Write-Host '  .\coder.ps1 -TargetDir <ProjectDir> -Agent claude -God'
+    Write-Host '  .\coder.ps1 -TargetDir <ProjectDir> -Agent codex -Mode autonomous -AutonomyLevel full-local'
+    Write-Host '  .\coder.ps1 -TargetDir <ProjectDir> -Agent claude -God -SessionNote "pipeline build sprint"'
+    Write-Host ''
+    exit 0
 }
 
 function Find-UpwardFile {
@@ -88,7 +129,12 @@ function Read-JsonFile {
         return $null
     }
 
-    return Get-Content -LiteralPath $Path -Raw | ConvertFrom-Json
+    try {
+        return Get-Content -LiteralPath $Path -Raw -ErrorAction Stop | ConvertFrom-Json -ErrorAction Stop
+    } catch {
+        Write-Warning "Could not parse JSON file '$Path': $_"
+        return $null
+    }
 }
 
 function Convert-RealPathToAlias {
@@ -112,8 +158,8 @@ function Convert-WindowsPathToWsl {
     param([string]$Path)
 
     if ($Path -match '^(?<drive>[A-Za-z]):\\(?<rest>.*)$') {
-        $drive = $Matches.drive.ToLowerInvariant()
-        $rest = $Matches.rest -replace '\\', '/'
+        $drive = $Matches['drive'].ToLowerInvariant()
+        $rest = $Matches['rest'] -replace '\\', '/'
         if ([string]::IsNullOrWhiteSpace($rest)) {
             return "/mnt/$drive"
         }
@@ -135,13 +181,13 @@ function New-RuntimeConfigFromTemplate {
         [hashtable]$SubstMap
     )
 
-    $templatePath = Join-Path (Split-Path -Path $PSScriptRoot -Parent) 'Constitution\runtime-template.json'
+    $dfwRootReal = Get-DFWRoot
+    $templatePath = Join-Path $dfwRootReal 'Tools\Constitution\runtime-template.json'
     if (-not (Test-Path -LiteralPath $templatePath)) {
         throw "Runtime template not found: $templatePath"
     }
 
     $projectRootReal = [System.IO.Path]::GetFullPath($ProjectRootReal)
-    $dfwRootReal = [System.IO.Path]::GetFullPath((Split-Path -Path (Split-Path -Path $PSScriptRoot -Parent) -Parent))
     $vaultRootReal = Join-Path $dfwRootReal 'Vault'
     $projectRootAlias = Convert-RealPathToAlias -Path $projectRootReal -SubstMap $SubstMap
     $dfwRootAlias = Convert-RealPathToAlias -Path $dfwRootReal -SubstMap $SubstMap
@@ -192,8 +238,8 @@ function Convert-ToRealPath {
     }
 
     if ($candidate -match '^(?<drive>[A-Z]:)(?<rest>\\.*)?$') {
-        $drive = $Matches.drive
-        $rest = if ($Matches.rest) { $Matches.rest } else { '' }
+        $drive = $Matches['drive']
+        $rest = if ($Matches['rest']) { $Matches['rest'] } else { '' }
 
         if ($SubstMap.ContainsKey($drive)) {
             return $SubstMap[$drive] + $rest
@@ -247,8 +293,13 @@ function Get-PersonaName {
     }
 
     $content = Get-Content -LiteralPath $agentsPath -Raw
-    if ($content -match 'Persona for this project:\s*(?<persona>.+)') {
-        return $Matches.persona.Trim()
+    # Match table row: | **Persona** | Donna ... |
+    if ($content -match '\*\*Persona\*\*\s*\|\s*(?<persona>[^\s|/\n(]+)') {
+        return $Matches['persona'].Trim()
+    }
+    # Fallback: legacy format "Persona for this project: Donna"
+    if ($content -match 'Persona for this project:\s*(?<persona>\S+)') {
+        return $Matches['persona'].Trim()
     }
 
     return $null
@@ -261,17 +312,17 @@ function Parse-DotEnvLine {
         return $null
     }
 
-    if ($Line -notmatch '^\s*(?:export\s+)?(?<name>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<value>.*)$') {
+    if ($Line -notmatch '^\s*(?:export\s+)?(?<n>[A-Za-z_][A-Za-z0-9_]*)\s*=\s*(?<value>.*)$') {
         return $null
     }
 
-    $name = $Matches.name.Trim()
-    $value = $Matches.value.Trim()
+    $name = $Matches['n'].Trim()
+    $value = if ($null -ne $Matches['value']) { $Matches['value'].Trim() } else { '' }
 
-    if (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'"))) {
+    if ($value.Length -ge 2 -and (($value.StartsWith('"') -and $value.EndsWith('"')) -or ($value.StartsWith("'") -and $value.EndsWith("'")))) {
         $value = $value.Substring(1, $value.Length - 2)
     } else {
-        $value = ($value -replace '\s+#.*$', '').TrimEnd()
+        $value = [regex]::Replace($value, '\s+#.*$', '').TrimEnd()
     }
 
     return @{ Name = $name; Value = $value }
@@ -340,6 +391,22 @@ function Get-AgentSpec {
     }
 }
 
+function Get-GodFlag {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$SelectedAgent
+    )
+
+    switch ($SelectedAgent) {
+        'claude' { return '--dangerously-skip-permissions' }
+        'codex'  { return '--full-auto' }
+        default  {
+            Write-Warning "No god mode flag known for agent '$SelectedAgent'. -God ignored."
+            return $null
+        }
+    }
+}
+
 $originalEnv = @{}
 Get-ChildItem Env: | ForEach-Object {
     $originalEnv[$_.Name] = $_.Value
@@ -375,6 +442,14 @@ try {
         $CanonicalPath = if ($runtime -and $runtime.launch -and $runtime.launch.canonicalPath) { [string]$runtime.launch.canonicalPath } else { 'real' }
     }
 
+    $godFlag = $null
+    if ($God) {
+        $godFlag = Get-GodFlag -SelectedAgent $Agent
+        if ($godFlag) {
+            Write-Host "GOD MODE ENGAGED: $godFlag" -ForegroundColor Red
+        }
+    }
+
     $realTargetCandidate = Convert-ToRealPath -Path $requestedTargetDir -Runtime $runtime -SubstMap $substMap
     if (-not (Test-Path -LiteralPath $realTargetCandidate)) {
         if (-not (Test-Path -LiteralPath $requestedTargetDir)) {
@@ -395,7 +470,12 @@ try {
     if (-not $runtime) {
         $runtimeConfigPath = Join-Path $projectRootByJson '.dfw\runtime.json'
         Write-Warning "No .dfw/runtime.json found for this project."
-        $createRuntime = Read-Host "Create runtime config now at $runtimeConfigPath ? [Y/n]"
+        $createRuntime = if ([Environment]::UserInteractive) {
+            Read-Host "Create runtime config now at $runtimeConfigPath ? [Y/n]"
+        } else {
+            Write-Warning 'Non-interactive session — skipping runtime config creation.'
+            'n'
+        }
         if ([string]::IsNullOrWhiteSpace($createRuntime) -or $createRuntime -match '^(y|yes)$') {
             $suggestedProjectName = if ($projectConfig -and $projectConfig.name) {
                 [string]$projectConfig.name
@@ -422,8 +502,8 @@ try {
     $projectRootAlias = if ($runtime -and $runtime.paths -and $runtime.paths.projectRootAlias) {
         [string]$runtime.paths.projectRootAlias
     } elseif (
-        $aliasTargetDir -and
-        $projectRootReal -and
+        -not [string]::IsNullOrEmpty($aliasTargetDir) -and
+        -not [string]::IsNullOrEmpty($projectRootReal) -and
         $resolvedTargetDir.StartsWith($projectRootReal, [System.StringComparison]::OrdinalIgnoreCase)
     ) {
         $relativeSuffix = $resolvedTargetDir.Substring($projectRootReal.Length)
@@ -467,14 +547,17 @@ try {
     }
 
     Ensure-LogFile -Path $sessionLogPath
-    Add-Content -LiteralPath $sessionLogPath -Value "[$(Get-Date -Format 's')] agent=$Agent mode=$Mode autonomy=$AutonomyLevel path=$resolvedTargetDir"
+    $godLogNote = if ($God) { ' god=true' } else { '' }
+    Add-Content -LiteralPath $sessionLogPath -Value "[$(Get-Date -Format 's')] agent=$Agent mode=$Mode autonomy=$AutonomyLevel$godLogNote path=$resolvedTargetDir"
 
     Set-Location -LiteralPath $resolvedTargetDir
     Write-Host "Working directory: $displayTargetDir" -ForegroundColor Cyan
 
     [System.Environment]::SetEnvironmentVariable('DFW_AGENT', $Agent, 'Process')
+    [System.Environment]::SetEnvironmentVariable('DFW_ROOT', (Get-DFWRoot), 'Process')
     [System.Environment]::SetEnvironmentVariable('DFW_SESSION_MODE', $Mode, 'Process')
     [System.Environment]::SetEnvironmentVariable('DFW_AUTONOMY_LEVEL', $AutonomyLevel, 'Process')
+    [System.Environment]::SetEnvironmentVariable('DFW_GOD_MODE', $(if ($God) { 'true' } else { 'false' }), 'Process')
     [System.Environment]::SetEnvironmentVariable('DFW_PROJECT_NAME', $projectName, 'Process')
     [System.Environment]::SetEnvironmentVariable('DFW_PROJECT_ROOT_REAL', $projectRootReal, 'Process')
     [System.Environment]::SetEnvironmentVariable('DFW_PROJECT_ROOT_ALIAS', $projectRootAlias, 'Process')
@@ -545,11 +628,17 @@ try {
         throw "Agent command not found on PATH: $($agentSpec.Exe)"
     }
 
-    Write-Host "Launching $Agent ($Mode / $AutonomyLevel)..." -ForegroundColor Green
-    & $agentSpec.Exe @($agentSpec.Args + $AgentArgs)
+    $finalArgs = @($agentSpec.Args)
+    if ($godFlag) {
+        $finalArgs += $godFlag
+    }
+    $finalArgs += $AgentArgs
+
+    Write-Host "Launching $Agent ($Mode / $AutonomyLevel$(if ($God) { ' / GOD MODE' }))..." -ForegroundColor Green
+    & $agentSpec.Exe @finalArgs
     $agentExitCode = if ($LASTEXITCODE) { $LASTEXITCODE } else { 0 }
 } catch {
-    Write-Error "coder.ps1 failed: $_"
+    Write-Error "coder.ps1 failed: $_ (at line $($_.InvocationInfo.ScriptLineNumber))"
     $agentExitCode = 1
 } finally {
     Write-Host "`nRestoring session environment..." -ForegroundColor Gray

@@ -6,29 +6,105 @@
     Guides a new user through the complete DFW (Development Flywheel) bootstrap:
       1. Validates PowerShell version (7.0+ required)
       2. Checks for Git and Node.js — installs via winget if missing
-      3. Prompts for a drive letter to host all DFW projects
-      4. Creates the Target Directory (<drive>:\Projects)
-      5. Clones the DFW repo into the Target Directory (if not already there)
-      6. Delegates to Initialize-DFW.ps1 for vault + DFWP scaffolding
-      7. Generates a ready-to-use claude-desktop-config.json
-      8. Prints next steps for Obsidian, Claude Desktop, and Cursor
+      3. Resolves root directory (-RootDir or current directory)
+      4. Shows install paths and asks for confirmation
+      5. Clones the DFW repo into <RootDir>\DFW (if not already there)
+      6. Sets persistent environment variables (DFW_ROOT, DFW_TOOLS, PATH)
+      7. Delegates to Initialize-DFW.ps1 for vault + DFWP scaffolding
+      8. Generates a ready-to-use claude-desktop-config.json
+      9. Sets execute permissions on all .ps1 scripts
+     10. Prints next steps for Obsidian, Claude Desktop, and Cursor
+
+.PARAMETER RootDir
+    Parent directory where the DFW\ folder will be created.
+    Example: -RootDir "C:\Projects" creates C:\Projects\DFW\...
+    If omitted, defaults to the current working directory.
+
+.PARAMETER GitHubUser
+    GitHub username for DFWP remote setup. If omitted, git remote is skipped.
+
+.PARAMETER Force
+    Overwrite existing files during scaffolding.
+
+.PARAMETER Help
+    Display detailed help information and exit.
 
 .EXAMPLE
-    # After cloning DFW to any temporary location:
+    # Install into current directory (creates .\DFW\...):
     .\Start-Here.ps1
 
 .EXAMPLE
+    # Install into a specific path:
+    .\Start-Here.ps1 -RootDir "D:\Projects"
+
+.EXAMPLE
     # Non-interactive (CI or scripted setup):
-    .\Start-Here.ps1 -DriveLetter D -GitHubUser FrankTewksbury -Force
+    .\Start-Here.ps1 -RootDir "C:\DATA" -GitHubUser FrankTewksbury -Force
+
+.EXAMPLE
+    # Show help:
+    .\Start-Here.ps1 -Help
 #>
 [CmdletBinding()]
 param(
-    [string]$DriveLetter,
+    [string]$RootDir,
     [string]$GitHubUser,
-    [switch]$Force
+    [switch]$Force,
+    [Alias('h', '?')]
+    [switch]$Help
 )
 
 $ErrorActionPreference = 'Stop'
+
+# =========================================================================
+# Help
+# =========================================================================
+if ($Help) {
+    Write-Host ''
+    Write-Host '================================================================' -ForegroundColor Cyan
+    Write-Host '  DFW — Development Flywheel Setup' -ForegroundColor Cyan
+    Write-Host '================================================================' -ForegroundColor Cyan
+    Write-Host ''
+    Write-Host '  WHAT THIS DOES:' -ForegroundColor White
+    Write-Host '    Sets up the complete DFW development environment on a new machine.' -ForegroundColor Gray
+    Write-Host '    Run this once. Everything else is automated.' -ForegroundColor Gray
+    Write-Host ''
+    Write-Host '  PREREQUISITES (auto-installed if missing):' -ForegroundColor White
+    Write-Host '    - PowerShell 7.0+  (pwsh.exe, not powershell.exe)' -ForegroundColor Gray
+    Write-Host '    - Git              (winget install Git.Git)' -ForegroundColor Gray
+    Write-Host '    - Node.js LTS      (winget install OpenJS.NodeJS.LTS)' -ForegroundColor Gray
+    Write-Host ''
+    Write-Host '  WHAT GETS CREATED (DFW\ structure is fixed, not configurable):' -ForegroundColor White
+    Write-Host '    <RootDir>\DFW\              DFW repo (cloned or detected)' -ForegroundColor Gray
+    Write-Host '    <RootDir>\DFW\DFWP\         Methodology project (scaffolded)' -ForegroundColor Gray
+    Write-Host '    <RootDir>\DFW\Vault\        Obsidian vault (scaffolded)' -ForegroundColor Gray
+    Write-Host '    <RootDir>\DFW\Tools\        Scripts, templates, rules' -ForegroundColor Gray
+    Write-Host ''
+    Write-Host '  ENVIRONMENT VARIABLES SET:' -ForegroundColor White
+    Write-Host '    DFW_ROOT    = <RootDir>\DFW            (User-level, persistent)' -ForegroundColor Gray
+    Write-Host '    DFW_TOOLS   = <RootDir>\DFW\Tools      (User-level, persistent)' -ForegroundColor Gray
+    Write-Host '    PATH       += <RootDir>\DFW\Tools\scripts  (User-level, persistent)' -ForegroundColor Gray
+    Write-Host ''
+    Write-Host '  CONFIG FILES WRITTEN:' -ForegroundColor White
+    Write-Host '    ~/.dfw/config.json              Machine-level DFW root config' -ForegroundColor Gray
+    Write-Host '    claude-desktop-config.json       Ready-to-copy MCP config' -ForegroundColor Gray
+    Write-Host ''
+    Write-Host '  PARAMETERS:' -ForegroundColor White
+    Write-Host '    -RootDir <path>         Parent directory for DFW (default: current dir)' -ForegroundColor Gray
+    Write-Host '    -GitHubUser  <name>     GitHub username for DFWP remote' -ForegroundColor Gray
+    Write-Host '    -Force                  Overwrite existing files during scaffold' -ForegroundColor Gray
+    Write-Host '    -Help                   Show this help and exit' -ForegroundColor Gray
+    Write-Host ''
+    Write-Host '  EXAMPLES:' -ForegroundColor White
+    Write-Host '    .\Start-Here.ps1                                            # Uses current dir' -ForegroundColor Cyan
+    Write-Host '    .\Start-Here.ps1 -RootDir "D:\Projects"                     # Explicit path' -ForegroundColor Cyan
+    Write-Host '    .\Start-Here.ps1 -RootDir "C:\DATA" -GitHubUser frank       # Full non-interactive' -ForegroundColor Cyan
+    Write-Host ''
+    Write-Host '  FULL DOCS:' -ForegroundColor White
+    Write-Host '    After setup, see: <DFW_ROOT>\Tools\docs\SETUP-GUIDE.md' -ForegroundColor Gray
+    Write-Host ''
+    return
+}
 
 # =========================================================================
 # Banner
@@ -155,50 +231,112 @@ if (Get-Command node -ErrorAction SilentlyContinue) {
 Write-Host ''
 
 # =========================================================================
-# Drive Letter Prompt
+# Resolve Root Directory
 # =========================================================================
-if (-not $DriveLetter) {
-    Write-Host '  What drive letter do you want for DFW projects?' -ForegroundColor White
-    Write-Host '  (All DFW repos, vault, and projects will live under <drive>:\Projects)' -ForegroundColor Gray
-    Write-Host ''
-    $DriveLetter = Read-Host '  Drive letter (e.g., C, D, X)'
-}
 
-$DriveLetter = $DriveLetter.Trim().TrimEnd(':').ToUpper()
+# Detect if we are already running from inside a DFW repo.
+# Marker: this script's directory contains Tools\Constitution\DFW-CONSTITUTION.md
+$scriptDir = $PSScriptRoot
+$isDfwRepo = Test-Path (Join-Path $scriptDir 'Tools\Constitution\DFW-CONSTITUTION.md')
 
-if ($DriveLetter.Length -ne 1 -or $DriveLetter -notmatch '^[A-Z]$') {
-    Write-Host "  ERROR: '$DriveLetter' is not a valid drive letter." -ForegroundColor Red
-    return
-}
+if ($isDfwRepo) {
+    # Script is inside the DFW repo — use this location as dfwRoot
+    $dfwRoot = [System.IO.Path]::GetFullPath($scriptDir)
 
-$driveRoot = "${DriveLetter}:\"
-if (-not (Test-Path $driveRoot)) {
-    Write-Host "  ERROR: Drive ${DriveLetter}: does not exist." -ForegroundColor Red
-    return
-}
+    if ($RootDir) {
+        # User explicitly passed -RootDir but we're already in a DFW repo.
+        # Warn them — we'll use the repo we're in, not create a new nested one.
+        $resolvedRootDir = [System.IO.Path]::GetFullPath($RootDir)
+        $expectedDfwRoot = Join-Path $resolvedRootDir 'DFW'
+        if ($dfwRoot -ne $expectedDfwRoot) {
+            Write-Host ''
+            Write-Host '  NOTE: You are running Start-Here.ps1 from inside an existing DFW repo.' -ForegroundColor Yellow
+            Write-Host "    Detected DFW root: $dfwRoot" -ForegroundColor Yellow
+            Write-Host "    -RootDir $RootDir will be ignored." -ForegroundColor Yellow
+            Write-Host '    To install elsewhere, copy Start-Here.ps1 to the target and run from there,' -ForegroundColor Gray
+            Write-Host '    or run: .\Start-Here.ps1 -RootDir "<parent-of-DFW>" from outside the repo.' -ForegroundColor Gray
+        }
+    }
 
-$targetDir = "${DriveLetter}:\Projects"
-$dfwRoot = Join-Path $targetDir 'DFW'
-$dfwpPath = Join-Path $dfwRoot 'DFWP'
-$vaultPath = Join-Path $dfwRoot 'Vault'
-
-Write-Host ''
-Write-Host "  Target Directory:  $targetDir" -ForegroundColor White
-Write-Host "  DFW Root:          $dfwRoot" -ForegroundColor White
-Write-Host "  DFWP Project:      $dfwpPath" -ForegroundColor White
-Write-Host "  Obsidian Vault:    $vaultPath" -ForegroundColor White
-Write-Host ''
-
-# =========================================================================
-# Create Target Directory
-# =========================================================================
-if (-not (Test-Path $targetDir)) {
-    New-Item -ItemType Directory -Path $targetDir -Force | Out-Null
-    Write-Host "  Creating $targetDir ..." -NoNewline
-    Write-Host '              OK' -ForegroundColor Green
+    $RootDir = Split-Path $dfwRoot -Parent
 } else {
-    Write-Host "  $targetDir" -NoNewline
-    Write-Host '              exists' -ForegroundColor DarkGray
+    # Script is NOT in a DFW repo — use -RootDir or CWD
+    if (-not $RootDir) {
+        $RootDir = (Get-Location).Path
+    }
+
+    $RootDir = [System.IO.Path]::GetFullPath($RootDir)
+
+    # Validate the root directory (or its parent) exists
+    if (-not (Test-Path $RootDir)) {
+        $parentOfRoot = Split-Path $RootDir -Parent
+        if (-not $parentOfRoot -or -not (Test-Path $parentOfRoot)) {
+            Write-Host "  ERROR: Root directory does not exist and cannot be created: $RootDir" -ForegroundColor Red
+            return
+        }
+    }
+
+    # Check if RootDir itself IS already a DFW repo (user pointed directly at it)
+    $rootDirIsDfw = Test-Path (Join-Path $RootDir 'Tools\Constitution\DFW-CONSTITUTION.md')
+
+    if ($rootDirIsDfw) {
+        # RootDir points to the DFW repo itself — use it as dfwRoot, parent as RootDir
+        $dfwRoot = $RootDir
+        $RootDir = Split-Path $dfwRoot -Parent
+    } else {
+        $dfwRoot = Join-Path $RootDir 'DFW'
+
+        # Guard: if <RootDir>\DFW\DFW would be created, the user likely made an error
+        $nestedDfw = Join-Path $dfwRoot 'DFW'
+        if (Test-Path (Join-Path $RootDir 'DFW')) {
+            $innerIsDfw = Test-Path (Join-Path $dfwRoot 'Tools\Constitution\DFW-CONSTITUTION.md')
+            if (-not $innerIsDfw) {
+                Write-Host "  ERROR: $dfwRoot exists but is not a DFW repo." -ForegroundColor Red
+                Write-Host "  A 'DFW' directory exists at your root but doesn't contain the expected files." -ForegroundColor Yellow
+                Write-Host '  Check your -RootDir and try again.' -ForegroundColor Yellow
+                return
+            }
+        }
+    }
+}
+
+# Derive fixed sub-paths
+$dfwpPath  = Join-Path $dfwRoot 'DFWP'
+$vaultPath = Join-Path $dfwRoot 'Vault'
+$targetDir = $RootDir
+
+# =========================================================================
+# Confirm Before Proceeding
+# =========================================================================
+Write-Host ''
+Write-Host '  Install location:' -ForegroundColor White
+Write-Host ''
+Write-Host "    Root Directory:  $RootDir" -ForegroundColor Cyan
+Write-Host "    DFW Root:        $dfwRoot" -ForegroundColor Gray
+Write-Host "    DFWP Project:    $dfwpPath" -ForegroundColor Gray
+Write-Host "    Obsidian Vault:  $vaultPath" -ForegroundColor Gray
+Write-Host "    Tools:           $dfwRoot\Tools" -ForegroundColor Gray
+Write-Host ''
+
+$confirm = Read-Host '  Proceed with installation? [Y/n]'
+if ($confirm -match '^(n|no)$') {
+    Write-Host ''
+    Write-Host '  Aborted. Re-run with -RootDir to specify a different location.' -ForegroundColor Yellow
+    Write-Host ''
+    return
+}
+
+Write-Host ''
+
+# =========================================================================
+# Create Root Directory
+# =========================================================================
+if (-not (Test-Path $RootDir)) {
+    New-Item -ItemType Directory -Path $RootDir -Force | Out-Null
+    Write-Host "  Created: $RootDir" -ForegroundColor Green
+} else {
+    Write-Host "  $RootDir" -NoNewline
+    Write-Host '  exists' -ForegroundColor DarkGray
 }
 
 # =========================================================================
@@ -258,6 +396,96 @@ if ($GitHubUser) {
 }
 
 & $initScript @initParams
+
+# =========================================================================
+# Set Environment Variables (User-level, persistent across sessions)
+# =========================================================================
+Write-Host ''
+Write-Host '--- Setting environment variables ---' -ForegroundColor Cyan
+
+$toolsPath = Join-Path $dfwRoot 'Tools'
+$scriptsPath = Join-Path $toolsPath 'scripts'
+
+# DFW_ROOT
+$existingDfwRoot = [Environment]::GetEnvironmentVariable('DFW_ROOT', 'User')
+if ($existingDfwRoot -eq $dfwRoot -and -not $Force) {
+    Write-Host "  DFW_ROOT     = $dfwRoot" -NoNewline
+    Write-Host '  (already set)' -ForegroundColor DarkGray
+} else {
+    [Environment]::SetEnvironmentVariable('DFW_ROOT', $dfwRoot, 'User')
+    $env:DFW_ROOT = $dfwRoot
+    Write-Host "  DFW_ROOT     = $dfwRoot" -NoNewline
+    Write-Host '  SET' -ForegroundColor Green
+}
+
+# DFW_TOOLS
+$existingDfwTools = [Environment]::GetEnvironmentVariable('DFW_TOOLS', 'User')
+if ($existingDfwTools -eq $toolsPath -and -not $Force) {
+    Write-Host "  DFW_TOOLS    = $toolsPath" -NoNewline
+    Write-Host '  (already set)' -ForegroundColor DarkGray
+} else {
+    [Environment]::SetEnvironmentVariable('DFW_TOOLS', $toolsPath, 'User')
+    $env:DFW_TOOLS = $toolsPath
+    Write-Host "  DFW_TOOLS    = $toolsPath" -NoNewline
+    Write-Host '  SET' -ForegroundColor Green
+}
+
+# PATH — add Tools\scripts if not already present
+$userPath = [Environment]::GetEnvironmentVariable('Path', 'User')
+if ($userPath -and $userPath.Split(';') -contains $scriptsPath) {
+    Write-Host "  PATH        += $scriptsPath" -NoNewline
+    Write-Host '  (already in PATH)' -ForegroundColor DarkGray
+} else {
+    $newPath = if ($userPath) { "$userPath;$scriptsPath" } else { $scriptsPath }
+    [Environment]::SetEnvironmentVariable('Path', $newPath, 'User')
+    $env:Path = "$env:Path;$scriptsPath"
+    Write-Host "  PATH        += $scriptsPath" -NoNewline
+    Write-Host '  ADDED' -ForegroundColor Green
+}
+
+Write-Host ''
+Write-Host '  Environment variables are persistent (User-level).' -ForegroundColor Gray
+Write-Host '  New terminal windows will inherit them automatically.' -ForegroundColor Gray
+
+# =========================================================================
+# Set Execute Permissions on Scripts
+# =========================================================================
+Write-Host ''
+Write-Host '--- Setting script execute permissions ---' -ForegroundColor Cyan
+
+$scriptFiles = Get-ChildItem -Path $scriptsPath -Filter '*.ps1' -File -ErrorAction SilentlyContinue
+$libPath = Join-Path $scriptsPath 'lib'
+if (Test-Path $libPath) {
+    $scriptFiles += Get-ChildItem -Path $libPath -Filter '*.ps1' -File -ErrorAction SilentlyContinue
+}
+# Include Start-Here.ps1 itself
+$scriptFiles += Get-Item $PSCommandPath
+
+$unblocked = 0
+foreach ($script in $scriptFiles) {
+    # Remove Zone.Identifier ADS (the "downloaded from internet" block)
+    if (Get-Item -Path $script.FullName -Stream Zone.Identifier -ErrorAction SilentlyContinue) {
+        Unblock-File -Path $script.FullName
+        $unblocked++
+    }
+}
+
+if ($unblocked -gt 0) {
+    Write-Host "  Unblocked $unblocked script(s) (removed download security zone)" -ForegroundColor Green
+} else {
+    Write-Host '  All scripts already unblocked' -ForegroundColor DarkGray
+}
+
+# Ensure execution policy allows local scripts
+$currentPolicy = Get-ExecutionPolicy -Scope CurrentUser
+if ($currentPolicy -eq 'Restricted' -or $currentPolicy -eq 'AllSigned') {
+    Write-Host "  Current execution policy: $currentPolicy — setting to RemoteSigned" -ForegroundColor Yellow
+    Set-ExecutionPolicy -Scope CurrentUser -ExecutionPolicy RemoteSigned -Force
+    Write-Host '  Execution policy set to RemoteSigned (CurrentUser)' -ForegroundColor Green
+} else {
+    Write-Host "  Execution policy: $currentPolicy" -NoNewline
+    Write-Host '  OK' -ForegroundColor Green
+}
 
 # =========================================================================
 # Generate claude-desktop-config.json
